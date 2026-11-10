@@ -16,10 +16,10 @@ pokedex-blocksort/
 ├── requirements.txt
 ├── main.py
 ├── src/
-│   ├── __init__.py      # inicializador del paquete
-│   ├── block_sort.py    # algoritmo
-│   ├── pokeapi.py       # cliente de la API + caché
-│   └── benchmark.py     # comparación de algoritmos
+│   ├── __init__.py      
+│   ├── block_sort.py  
+│   ├── pokeapi.py    
+│   └── benchmark.py 
 └── tests/
     ├── test_block_sort.py
     └── test_pokeapi.py
