@@ -1,5 +1,5 @@
 """
-Medición de tiempos y comparaciones.
+Medicion de tiempos y comparaciones.
 """
 
 def ejecutar_benchmark():

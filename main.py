@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Punto de entrada principal (CLI) para Block Sort Proyeto.
+Punto de entrada principal (CLI) para Block Sort Proyecto.
 """
 
 def main():
