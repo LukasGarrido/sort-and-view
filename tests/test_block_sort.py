@@ -1,8 +1,8 @@
 """
 Pruebas unitarias para Block Sort.
 """
-import unittest
 import random
+import unittest
 from src.block_sort import block_sort, block_sort_detailed_steps, TAM_BLOQUE
 
 
@@ -85,6 +85,12 @@ class TestBlockSort(unittest.TestCase):
         self.assertEqual(keys_desc, [3, 2, 2, 2, 1])
         twos_desc = [x["orig_index"] for x in res_desc if x["key"] == 2]
         self.assertEqual(twos_desc, [0, 2, 4])
+
+    def test_tamanos_de_bloque(self):
+        """Cualquier tamaño de bloque (incluso mayor que la lista) ordena igual que sorted()."""
+        datos = [random.randint(1, 50) for _ in range(100)]
+        for bloque in (1, 4, 7, 32, 200):
+            self.assertEqual(block_sort(datos, bloque=bloque), sorted(datos))
 
     def test_pasos_detallados_son_permutaciones(self):
         """Cada paso de la animación contiene todos los elementos, sin repetidos ni faltantes."""

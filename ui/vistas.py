@@ -150,20 +150,31 @@ def mostrar_benchmark():
     with st.spinner("Ejecutando benchmarks..."):
         filas = obtener_benchmark_cacheado()
 
-    df_bench = pd.DataFrame(filas, columns=["Campo", "Tamaño (n)", "Tiempo (s)", "Comparaciones"])
-    df_bench[r"Tiempo ($\mu$s)"] = df_bench["Tiempo (s)"] * 1e6
+    df_bench = pd.DataFrame(filas, columns=["Campo", "Bloque", "Tamaño (n)", "Tiempo (s)", "Comparaciones"])
+    df_bench["Tiempo (µs)"] = df_bench["Tiempo (s)"] * 1e6
 
     campo_sel = st.selectbox("Filtrar benchmark por campo:", df_bench["Campo"].unique())
-    df_filtrado = df_bench[df_bench["Campo"] == campo_sel]
+    df_campo = df_bench[df_bench["Campo"] == campo_sel]
 
+    st.markdown("### Efecto del tamaño de lista (una línea por tamaño de bloque)")
     col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(rf"#### Tiempo de Ejecución ($\mu s$) - {campo_sel}")
-        st.bar_chart(df_filtrado.set_index("Tamaño (n)")[r"Tiempo ($\mu$s)"])
+    for col, metrica in ((col1, "Tiempo (µs)"), (col2, "Comparaciones")):
+        tabla = df_campo.pivot(index="Tamaño (n)", columns="Bloque", values=metrica)
+        tabla.columns = [f"Bloque {b:02d}" for b in tabla.columns]
+        col.markdown(f"#### {metrica} - {campo_sel}")
+        col.line_chart(tabla, x_label="Cantidad de elementos (n)", y_label=metrica)
 
-    with col2:
-        st.markdown(rf"#### Número de Comparaciones - {campo_sel}")
-        st.bar_chart(df_filtrado.set_index("Tamaño (n)")["Comparaciones"])
+    n_max = df_campo["Tamaño (n)"].max()
+    st.markdown(f"### Efecto del tamaño de bloque (n = {n_max})")
+    st.caption(
+        "Con bloques chicos hay más fusiones; con bloques grandes, más insertion sort. "
+        "Si el bloque es mayor que n, todo el trabajo lo hace insertion sort."
+    )
+    df_n = df_campo[df_campo["Tamaño (n)"] == n_max]
+    col3, col4 = st.columns(2)
+    for col, metrica in ((col3, "Tiempo (µs)"), (col4, "Comparaciones")):
+        col.markdown(f"#### {metrica} - {campo_sel}")
+        col.line_chart(df_n, x="Bloque", y=metrica, x_label="Tamaño de bloque", y_label=metrica)
 
     st.markdown("### Tabla detallada de Benchmark")
-    st.dataframe(df_bench, use_container_width=True, hide_index=True)
+    st.dataframe(df_bench.drop(columns="Tiempo (s)"), use_container_width=True, hide_index=True)
