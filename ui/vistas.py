@@ -3,11 +3,28 @@ Vistas y renderizado de componentes para la app de Streamlit.
 """
 import streamlit as st
 import pandas as pd
-import time
+import base64
+import inspect
+import json
 import random
-import altair as alt
+from pathlib import Path
+import streamlit.components.v1 as components
 from src.benchmark import ejecutar_benchmark
-from src.block_sort import block_sort_detailed_steps
+from src.block_sort import TAM_BLOQUE, _insertion_sort, _merge, block_sort, block_sort_detailed_steps
+
+# Bloques chicos solo para la animacion (el algoritmo real usa TAM_BLOQUE = 32)
+BLOQUE_ANIM = 8
+MIN_ANIM = 25  # minimo de datos pedido por la rubrica
+SPRITES = Path(__file__).resolve().parent.parent / "data" / "sprites"
+
+
+@st.cache_data
+def _sprite(id_pokemon):
+    """Sprite del Pokemon como data URI (el iframe de la animacion no puede leer archivos locales)."""
+    ruta = SPRITES / f"{id_pokemon}.png"
+    if not ruta.exists():
+        return ""
+    return "data:image/png;base64," + base64.b64encode(ruta.read_bytes()).decode()
 
 
 @st.cache_data
@@ -61,91 +78,64 @@ def mostrar_listado(pokemones, campo_orden):
     st.dataframe(df, use_container_width=True, hide_index=True)
 
 
-def mostrar_animacion_ordenamiento(pokemones, campo):
-    """Muestra una animación detallada y paso a paso del algoritmo Block Sort con nombres de Pokémon en el eje X."""
-    st.subheader("Visualizador Animado y Detallado de Block Sort")
-    st.markdown(
-        "Seleccione la cantidad de elementos y pulse el boton para iniciar. "
-        "Cada barra muestra el nombre del Pokemon en el eje X y tiene un color unico para que pueda rastrear "
-        "cómo se desplaza y se ubica en su posicion correcta paso a paso."
-    )
+def mostrar_animacion_ordenamiento(pokemones, campo, reverse=False):
+    """Animación de Block Sort: los pasos se calculan aquí y se reproducen en el navegador (ui/animacion.html)."""
+    st.subheader("Visualizador Animado de Block Sort")
 
     if not pokemones:
         st.warning("No hay datos disponibles para animar.")
         return
 
-    col1, col2 = st.columns(2)
-    with col1:
-        tam_muestra = st.slider("Cantidad de elementos", min_value=10, max_value=min(40, len(pokemones)), value=20, step=5, key="anim_tam_simple")
-    with col2:
-        velocidad = st.slider("Velocidad de animacion (segundos por paso)", min_value=0.05, max_value=0.8, value=0.25, step=0.05, key="anim_vel_simple")
+    if len(pokemones) < MIN_ANIM:
+        st.warning(f"La animación necesita al menos {MIN_ANIM} Pokémon y con el filtro actual hay {len(pokemones)}. Quita o cambia el filtro.")
+        return
 
+    col1, col2 = st.columns([3, 1])
+    tam = col1.slider("Cantidad de elementos", min_value=MIN_ANIM, max_value=min(40, len(pokemones)), value=MIN_ANIM, step=1, key="anim_tam_simple")
+    if col2.button("Mezclar de nuevo") or "anim_seed" not in st.session_state:
+        st.session_state["anim_seed"] = random.random()
+
+    muestra = list(pokemones[:tam])
+    random.Random(st.session_state["anim_seed"]).shuffle(muestra)
     key_func = lambda p: p.get(campo, 0)
 
-    if "anim_started" not in st.session_state:
-        st.session_state["anim_started"] = False
-    if "anim_step" not in st.session_state:
-        st.session_state["anim_step"] = 0
-    if "anim_steps_list" not in st.session_state:
-        st.session_state["anim_steps_list"] = []
+    pos = {id(p): k for k, p in enumerate(muestra)}
+    pasos = list(block_sort_detailed_steps(muestra, key=key_func, reverse=reverse, bloque=BLOQUE_ANIM))
+    rank = {pos[id(p)]: r for r, p in enumerate(pasos[-1][0])}
+    datos = {
+        "items": [{"name": p["name"].capitalize(), "value": key_func(p), "rank": rank[k], "img": _sprite(p.get("id"))} for k, p in enumerate(muestra)],
+        "steps": [[pos[id(p)] for p in paso] for paso, _, _ in pasos],
+        "anchos": [ancho for _, ancho, _ in pasos],
+        "cmps": [cmp for _, _, cmp in pasos],
+        "bloque": BLOQUE_ANIM,
+        "campo": campo,
+    }
+    html = (Path(__file__).parent / "animacion.html").read_text(encoding="utf-8")
+    components.html(html.replace("__DATOS__", json.dumps(datos)), height=610)
+    mostrar_explicacion_block_sort()
 
-    col_btn1, col_btn2 = st.columns(2)
-    if col_btn1.button("Iniciar Animacion Detallada"):
-        muestra = list(pokemones[:tam_muestra])
-        random.shuffle(muestra)
-        st.session_state["anim_steps_list"] = list(block_sort_detailed_steps(muestra, key=key_func))
-        st.session_state["anim_step"] = 0
-        st.session_state["anim_started"] = True
-        st.rerun()
 
-    if col_btn2.button("Detener Animacion"):
-        st.session_state["anim_started"] = False
-        st.rerun()
-
-    if st.session_state.get("anim_started", False):
-        steps = st.session_state["anim_steps_list"]
-        step_idx = st.session_state["anim_step"]
-        total = len(steps) - 1 if len(steps) > 1 else 0
-
-        if total > 0:
-            progreso = min(step_idx / total, 1.0)
-            st.progress(progreso, text=f"Paso detallado {step_idx} de {total}")
-
-            if step_idx == 0:
-                st.info("Estado inicial aleatorio (desordenado). Las barras comenzaran a moverse...")
-            elif step_idx <= total // 2:
-                st.info("Recorrido activo: Ordenando bloques locales mediante insercion paso a paso.")
-            else:
-                st.info("Recorrido activo: Fusionando (Merge) bloques ordenados.")
-
-            paso_actual = steps[step_idx]
-            
-            df_paso = pd.DataFrame({
-                "Posicion": list(range(len(paso_actual))),
-                "Valor": [p.get(campo, 0) for p in paso_actual],
-                "Pokemon": [p.get("name", "").capitalize() for p in paso_actual]
-            })
-
-            # Gráfico con Altair mostrando los nombres de los Pokémon en el eje X y colores persistentes
-            chart = alt.Chart(df_paso).mark_bar().encode(
-                x=alt.X("Pokemon:N", title="Pokemon", sort=list(df_paso["Pokemon"])),
-                y=alt.Y("Valor:Q", title=f"Valor ({campo})"),
-                color=alt.Color("Pokemon:N", legend=None, scale=alt.Scale(scheme="category20")),
-                tooltip=["Posicion", "Pokemon", "Valor"]
-            ).properties(height=380)
-
-            st.altair_chart(chart, use_container_width=True)
-
-            with st.expander("Ver detalle de elementos en este micro-paso"):
-                st.dataframe(df_paso[["Posicion", "Pokemon", "Valor"]], hide_index=True, use_container_width=True)
-
-            if step_idx < total:
-                time.sleep(velocidad)
-                st.session_state["anim_step"] += 1
-                st.rerun()
-            else:
-                st.session_state["anim_started"] = False
-                st.success("¡Recorrido y ordenamiento completado con exito!")
+def mostrar_explicacion_block_sort():
+    """Muestra el código real de src/block_sort.py, por función, para leerlo junto a la animación."""
+    st.markdown("---")
+    st.subheader("Código del algoritmo")
+    st.caption(
+        f"Es el código de `src/block_sort.py`. La animación usa bloques de {BLOQUE_ANIM} para que se vean varios; "
+        f"`block_sort` usa {TAM_BLOQUE} por defecto."
+    )
+    tabs = st.tabs(["block_sort (principal)", "Fase 1: _insertion_sort", "Fase 2: _merge"])
+    partes = [
+        (block_sort, "Orquesta todo: parte la lista en bloques, llama a `_insertion_sort` en cada uno y luego "
+                     "fusiona de a pares con `_merge`, duplicando el ancho (`width`) en cada pasada hasta quedar un solo bloque."),
+        (_insertion_sort, "Ordena un bloque: toma cada elemento y lo desliza hacia atrás mientras el de su "
+                          "izquierda sea mayor. La comparación es estricta, por eso no cruza elementos iguales (estabilidad)."),
+        (_merge, "Junta dos mitades ya ordenadas: copia cada una a un búfer, compara el primero de cada lado y "
+                 "coloca el menor. Con `<=` gana el de la izquierda en los empates (estabilidad)."),
+    ]
+    for tab, (fn, texto) in zip(tabs, partes):
+        with tab:
+            st.markdown(texto)
+            st.code(inspect.getsource(fn), language="python")
 
 
 def mostrar_benchmark():
