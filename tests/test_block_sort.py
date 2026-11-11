@@ -85,6 +85,51 @@ class TestBlockSort(unittest.TestCase):
         twos_desc = [x["orig_index"] for x in res_desc if x["key"] == 2]
         self.assertEqual(twos_desc, [0, 2, 4])
 
+    def test_tam_bloque_personalizado(self):
+        import random
+        lista = [random.randint(-50, 50) for _ in range(70)]
+        for tam in [1, 3, 4, 8, 16, 100]:
+            self.assertEqual(block_sort(lista, tam_bloque=tam), sorted(lista))
+            self.assertEqual(block_sort(lista, reverse=True, tam_bloque=tam),
+                             sorted(lista, reverse=True))
+
+    def test_tam_bloque_invalido(self):
+        with self.assertRaises(ValueError):
+            block_sort([3, 1, 2], tam_bloque=0)
+
+    def test_registrar_no_altera_resultado(self):
+        import random
+        lista = [random.randint(0, 100) for _ in range(50)]
+        eventos = []
+        res = block_sort(lista, tam_bloque=8,
+                         registrar=lambda tipo, arr, **info: eventos.append((tipo, list(arr), info)))
+        self.assertEqual(res, sorted(lista))
+        self.assertEqual(res, block_sort(lista, tam_bloque=8))
+        # El último estado registrado ya es la lista ordenada
+        self.assertEqual(eventos[-1][1], res)
+        tipos = {t for t, _, _ in eventos}
+        self.assertEqual(tipos, {"fase", "comparar", "mover"})
+
+    def test_registrar_fases(self):
+        # 10 elementos con bloques de 4: bloques [0,4) [4,8) [8,10),
+        # fusiones [0,8) y luego [0,10)
+        fases = []
+
+        def reg(tipo, arr, **info):
+            if tipo == "fase":
+                fases.append((info["nombre"], info["inicio"], info["fin"]))
+
+        block_sort(list(range(10, 0, -1)), tam_bloque=4, registrar=reg)
+        self.assertEqual(fases, [
+            ("bloque", 0, 4), ("bloque", 4, 8), ("bloque", 8, 10),
+            ("fusion", 0, 8), ("fusion", 0, 10),
+        ])
+
+    def test_registrar_lista_trivial(self):
+        eventos = []
+        block_sort([1], registrar=lambda *a, **k: eventos.append(a))
+        self.assertEqual(eventos, [])
+
 
 if __name__ == "__main__":
     unittest.main()
