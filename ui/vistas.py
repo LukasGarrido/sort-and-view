@@ -8,7 +8,7 @@ import random
 from pathlib import Path
 import streamlit.components.v1 as components
 from src.benchmark import ejecutar_benchmark
-from src.block_sort import block_sort_detailed_steps
+from src.block_sort import TAM_BLOQUE, block_sort_detailed_steps
 
 # Bloques chicos solo para la animacion (el algoritmo real usa TAM_BLOQUE = 32)
 BLOQUE_ANIM = 8
@@ -94,6 +94,40 @@ def mostrar_animacion_ordenamiento(pokemones, campo, reverse=False):
     }
     html = (Path(__file__).parent / "animacion.html").read_text(encoding="utf-8")
     components.html(html.replace("__DATOS__", json.dumps(datos)), height=510)
+    mostrar_explicacion_block_sort()
+
+
+def mostrar_explicacion_block_sort():
+    """Explica el algoritmo en texto, pensado para leerse junto a la animación."""
+    st.markdown("---")
+    st.subheader("¿Cómo funciona Block Sort?")
+    st.markdown(
+        f"""
+Ordenar una lista chica es fácil; ordenar una grande cuesta más. **Block Sort** parte la lista en
+bloques chicos, ordena cada uno y después los une de a pares hasta quedar con uno solo.
+
+1. **Dividir.** La lista se corta en bloques de tamaño fijo (las franjas de la animación). Aquí son de
+   {BLOQUE_ANIM} para que se vean varios; el programa usa {TAM_BLOQUE} por defecto.
+2. **Ordenar cada bloque con *insertion sort*.** Se toma cada elemento y se desliza hacia atrás mientras
+   el de su izquierda sea mayor. Es rápido en listas chicas. Es la **Fase 1** de la animación.
+3. **Fusionar de a pares.** Dos bloques vecinos ya ordenados se juntan en uno: se compara el primero de
+   cada lado y siempre se queda el menor. Cada pasada duplica el tamaño de los grupos
+   ({BLOQUE_ANIM} → {2 * BLOQUE_ANIM} → {4 * BLOQUE_ANIM}…) hasta que queda un solo bloque. Es la **Fase 2**.
+
+**Cómo leer la animación:** el color de cada barra es su lugar final (si todo sale bien, termina como un
+arcoíris de izquierda a derecha), el borde blanco marca las barras que se están moviendo y las franjas
+muestran los bloques o grupos.
+
+**Propiedades**
+- **Estable:** si dos Pokémon empatan en la característica elegida, conservan su orden original.
+- **Costo:** insertion sort en un bloque de tamaño *b* hace del orden de *b²* comparaciones, y hay *n/b* bloques,
+  o sea unas *n·b* en total. Las fusiones necesitan unas *n·log₂(n/b)*. Por eso el tamaño del bloque importa:
+  uno muy chico hace muchas fusiones y uno muy grande hace demasiado insertion sort. En
+  *Métricas de Benchmark* se ve el efecto.
+- **Memoria:** al fusionar se copia temporalmente cada mitad. La animación lo muestra como deslizamientos
+  dentro de la misma lista para que sea más fácil de seguir.
+"""
+    )
 
 
 def mostrar_benchmark():
