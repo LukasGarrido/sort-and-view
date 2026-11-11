@@ -88,12 +88,12 @@ class TestBlockSort(unittest.TestCase):
 
     def test_pasos_detallados_son_permutaciones(self):
         """Cada paso de la animación contiene todos los elementos, sin repetidos ni faltantes."""
-        for n in (5, TAM_BLOQUE + 8):
+        for n, bloque in ((5, TAM_BLOQUE), (TAM_BLOQUE + 8, TAM_BLOQUE), (20, 4)):
             for reverse in (False, True):
                 datos = [(random.randint(1, 5), i) for i in range(n)]
-                pasos = list(block_sort_detailed_steps(datos, key=lambda t: t[0], reverse=reverse))
-                self.assertTrue(all(sorted(p) == sorted(datos) for p in pasos))
-                self.assertEqual(pasos[-1], block_sort(datos, key=lambda t: t[0], reverse=reverse))
+                pasos = list(block_sort_detailed_steps(datos, key=lambda t: t[0], reverse=reverse, bloque=bloque))
+                self.assertTrue(all(sorted(p) == sorted(datos) for p, _ in pasos))
+                self.assertEqual(pasos[-1][0], block_sort(datos, key=lambda t: t[0], reverse=reverse))
 
 
 if __name__ == "__main__":

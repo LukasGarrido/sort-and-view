@@ -8,7 +8,10 @@ import random
 from pathlib import Path
 import streamlit.components.v1 as components
 from src.benchmark import ejecutar_benchmark
-from src.block_sort import TAM_BLOQUE, block_sort_detailed_steps
+from src.block_sort import block_sort_detailed_steps
+
+# Bloques chicos solo para la animacion (el algoritmo real usa TAM_BLOQUE = 32)
+BLOQUE_ANIM = 8
 
 
 @st.cache_data
@@ -80,20 +83,13 @@ def mostrar_animacion_ordenamiento(pokemones, campo, reverse=False):
     key_func = lambda p: p.get(campo, 0)
 
     pos = {id(p): k for k, p in enumerate(muestra)}
-    pasos = list(block_sort_detailed_steps(muestra, key=key_func, reverse=reverse))
-    # pasos de insercion = suma de los de cada bloque; el resto es fusion
-    fase1 = sum(
-        len(list(block_sort_detailed_steps(muestra[i:i + TAM_BLOQUE], key=key_func, reverse=reverse))) - 1
-        for i in range(0, tam, TAM_BLOQUE)
-    )
-    # se descartan los pasos repetidos (el generador cede el mismo estado dos veces)
-    unicos = [(0, pasos[0])] + [(k, b) for k, (a, b) in enumerate(zip(pasos, pasos[1:]), 1) if a != b]
-    rank = {pos[id(p)]: r for r, p in enumerate(pasos[-1])}
+    pasos = list(block_sort_detailed_steps(muestra, key=key_func, reverse=reverse, bloque=BLOQUE_ANIM))
+    rank = {pos[id(p)]: r for r, p in enumerate(pasos[-1][0])}
     datos = {
         "items": [{"name": p["name"].capitalize(), "value": key_func(p), "rank": rank[k]} for k, p in enumerate(muestra)],
-        "steps": [[pos[id(p)] for p in paso] for _, paso in unicos],
-        "fase1": sum(1 for k, _ in unicos if k <= fase1) - 1,
-        "bloque": TAM_BLOQUE,
+        "steps": [[pos[id(p)] for p in paso] for paso, _ in pasos],
+        "anchos": [ancho for _, ancho in pasos],
+        "bloque": BLOQUE_ANIM,
         "campo": campo,
     }
     html = (Path(__file__).parent / "animacion.html").read_text(encoding="utf-8")

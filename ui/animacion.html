@@ -13,7 +13,9 @@
   .bar .n { position: absolute; top: calc(100% + 6px); left: 50%; font-size: 11px; color: #cbd5e1;
             white-space: nowrap; transform-origin: 0 0; transform: rotate(55deg); }
   .bar.mov { box-shadow: 0 0 0 2px #fff, 0 0 14px 3px rgba(255,255,255,.55); z-index: 2; }
-  .sep { position: absolute; top: -10px; bottom: 0; border-left: 2px dashed #475569; }
+  .band { position: absolute; top: -24px; bottom: 0; box-sizing: border-box; border-radius: 6px 6px 0 0;
+          border: 1px solid rgba(148,163,184,.35); transition: left .3s, width .3s, background .3s; }
+  .band b { position: absolute; top: 3px; left: 8px; font-size: 11px; color: #cbd5e1; font-weight: 600; }
   #ctl { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   button, select { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 8px;
                    padding: 6px 12px; font-size: 14px; cursor: pointer; }
@@ -38,7 +40,7 @@
   </div>
 </div>
 <script>
-const D = __DATOS__;  // {items:[{name,value,rank}], steps:[[idx..]], fase1:n, bloque:n, campo:str}
+const D = __DATOS__;  // {items:[{name,value,rank}], steps:[[idx..]], anchos:[n..], bloque:n, campo:str}
 const stage = document.getElementById("stage");
 const n = D.items.length, W = stage.clientWidth, bw = W / n;
 const vmax = Math.max(...D.items.map(i => i.value), 1);
@@ -55,11 +57,19 @@ const bars = D.items.map((it, k) => {
   return b;
 });
 
-const seps = [];
-for (let p = D.bloque; p < n; p += D.bloque) {
-  const s = document.createElement("div");
-  s.className = "sep"; s.style.left = (p * bw) + "px";
-  stage.appendChild(s); seps.push(s);
+let anchoPintado = 0;
+function bandas(w) {  // franjas alternadas: una por bloque (o por grupo fusionado)
+  if (w === anchoPintado) return;
+  anchoPintado = w;
+  stage.querySelectorAll(".band").forEach(e => e.remove());
+  for (let g = 0, p = 0; p < n; g++, p += w) {
+    const e = document.createElement("div");
+    e.className = "band";
+    e.style.left = (p * bw) + "px"; e.style.width = (Math.min(w, n - p) * bw) + "px";
+    e.style.background = g % 2 ? "rgba(99,102,241,.16)" : "rgba(14,165,233,.10)";
+    e.innerHTML = `<b>${w === D.bloque ? "Bloque" : "Grupo"} ${g + 1}</b>`;
+    stage.prepend(e);
+  }
 }
 
 const seek = document.getElementById("seek"), play = document.getElementById("play");
@@ -73,19 +83,18 @@ function show(k) {
     bars[idx].style.left = (pos * bw + 1.5) + "px";
     bars[idx].classList.toggle("mov", k > 0 && prev[pos] !== idx);
   });
-  const fin = k === D.steps.length - 1, f1 = k <= D.fase1 && !fin;
-  seps.forEach(s => s.style.display = f1 || k === 0 ? "" : "none");
+  const w = D.anchos[k], fin = k === D.steps.length - 1, f1 = w === D.bloque && !fin;
+  bandas(w);
   document.getElementById("fase").textContent =
     k === 0 ? "Estado inicial: Pokémon mezclados"
     : fin ? "¡Ordenado! El arcoíris quedó en orden"
-    : f1 ? "Fase 1 · Insertion sort dentro de cada bloque"
-         : "Fase 2 · Fusión (merge) de bloques ordenados";
+    : f1 ? `Fase 1 · Insertion sort dentro de cada bloque (de ${D.bloque})`
+         : `Fase 2 · Fusión: bloques de ${w / 2} se unen en grupos de ${w}`;
   document.getElementById("expl").textContent =
     k === 0 ? `Cada barra es un Pokémon (${D.campo}). Su color es su lugar final: el objetivo es ver el arcoíris de izquierda a derecha.`
     : fin ? "Los que tenían el mismo valor conservaron su orden original (el algoritmo es estable)."
-    : f1 ? (D.bloque < n ? "Las líneas punteadas separan los bloques. Cada uno se ordena por separado; las barras con borde blanco son las que se mueven."
-                         : "Cada elemento se desliza hacia atrás hasta encontrar su lugar. Las barras con borde blanco son las que se mueven.")
-         : "Se juntan de a dos los bloques ya ordenados, tomando siempre el menor de cada lado.";
+    : f1 ? "La lista se parte en bloques (franjas) y cada uno se ordena por separado. Las barras con borde blanco son las que se mueven."
+         : "Cada bloque ya está ordenado; se juntan de a dos y los elementos se deslizan hasta su lugar en el grupo nuevo.";
   document.getElementById("info").textContent = `Paso ${k} de ${D.steps.length - 1}`;
   if (fin) stop();
 }

@@ -139,23 +139,24 @@ def block_sort_steps(lista, key=None, reverse=False):
         width *= 2
 
 
-def block_sort_detailed_steps(lista, key=None, reverse=False):
-    """Generador que cede (yield) copias del arreglo en cada micro-paso
-    (cada intercambio de insertion sort y de merge),
-    permitiendo una animación detallada, lenta y fluida del recorrido del algoritmo.
+def block_sort_detailed_steps(lista, key=None, reverse=False, bloque=TAM_BLOQUE):
+    """Generador que cede (yield) tuplas (copia del arreglo, ancho de los grupos) en cada
+    micro-paso (cada intercambio de insertion sort y de merge), para animar el algoritmo.
+    `ancho` es el tamaño de los bloques que se están ordenando o fusionando.
+    `bloque` permite usar bloques más chicos que TAM_BLOQUE para que se vean en la animación.
     """
     if not lista:
-        yield []
+        yield [], bloque
         return
 
     arr = list(lista)
     n = len(arr)
     if n <= 1:
-        yield arr
+        yield arr, bloque
         return
 
     key_func = key if key is not None else (lambda x: x)
-    yield list(arr)
+    yield list(arr), bloque
 
     def desordenados(x, y):
         """True si x no puede quedar antes que y (estricto, mantiene la estabilidad)."""
@@ -165,17 +166,17 @@ def block_sort_detailed_steps(lista, key=None, reverse=False):
     # así la animación puede mover una barra por elemento sin repetidos ni faltantes.
 
     # 1 y 2. Inserción detallada por bloques (intercambios con el vecino)
-    for start in range(0, n, TAM_BLOQUE):
-        end = min(start + TAM_BLOQUE, n)
+    for start in range(0, n, bloque):
+        end = min(start + bloque, n)
         for i in range(start + 1, end):
             j = i - 1
             while j >= start and desordenados(arr[j], arr[j + 1]):
                 arr[j], arr[j + 1] = arr[j + 1], arr[j]
                 j -= 1
-                yield list(arr)
+                yield list(arr), bloque
 
     # 3. Fusión detallada: cada elemento de la derecha que debe ir antes se desliza hacia su lugar
-    width = TAM_BLOQUE
+    width = bloque
     while width < n:
         for left in range(0, n, 2 * width):
             mid = min(left + width, n)
@@ -185,8 +186,7 @@ def block_sort_detailed_steps(lista, key=None, reverse=False):
                 if desordenados(arr[i], arr[j]):
                     for k in range(j, i, -1):
                         arr[k], arr[k - 1] = arr[k - 1], arr[k]
-                        yield list(arr)
+                        yield list(arr), 2 * width
                     j += 1
                 i += 1
         width *= 2
-    yield list(arr)
