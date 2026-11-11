@@ -1,12 +1,12 @@
-# Pokédex Block Sort
+# Pokedex Block Sort
 
-Proyecto pequeño que ordena Pokémon obtenidos desde [PokeAPI](https://pokeapi.co/) usando el algoritmo **Block Sort** (block merge sort). ¿Por qué?, por que es un ordenamiento estable que trabaja casi sin memoria extra (in-place).
+Proyecto pequeno que ordena Pokemon obtenidos desde [PokeAPI](https://pokeapi.co/) usando el algoritmo **Block Sort** (block merge sort) y visualizacion interactiva con **Streamlit**.
 
 ## Objetivo
 
 - Implementar Block Sort en Python.
-- Obtener datos reales de Pokémon desde PokeAPI (con caché local).
-- Ordenarlos por distintos campos: `name`, `weight`, `height`, `base_experience`, `tipo`.
+- Obtener datos reales de Pokemon desde PokeAPI (con cache local SQLite en directorio del sistema operativo).
+- Visualizar y ordenar los datos mediante interfaz con Streamlit.
 
 ## Estructura
 
@@ -25,7 +25,7 @@ pokedex-blocksort/
     └── test_pokeapi.py
 ```
 
-## Instalación
+## Instalacion
 
 ```bash
 python -m venv venv
@@ -35,4 +35,4 @@ pip install -r requirements.txt
 
 ## Stack
 
-Python 3.10+, `requests`, `requests-cache`, `pytest`.
+Python 3.10+, `requests`, `requests-cache`, `platformdirs`, `streamlit`, `pandas`, `pytest`.
