@@ -1,0 +1,162 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; font-family: system-ui, sans-serif; color: #e2e8f0; }
+  #card { background: #0f172a; border-radius: 12px; padding: 14px 16px 10px; }
+  #fase { font-weight: 600; font-size: 15px; margin-bottom: 2px; }
+  #expl { font-size: 13px; color: #94a3b8; min-height: 34px; }
+  #accion { font-size: 13px; font-weight: 600; min-height: 20px; margin-top: 2px; }
+  #accion .c { color: #facc15; } #accion .m { color: #fff; }
+  #stage { position: relative; height: 280px; margin: 80px 0 96px; border-bottom: 2px solid #334155; }
+  .bar { position: absolute; bottom: 0; border-radius: 5px 5px 0 0;
+         transition: left .35s ease, box-shadow .2s, filter .2s; }
+  .bar .v { position: absolute; top: -17px; width: 100%; text-align: center; font-size: 11px; color: #cbd5e1; }
+  .bar .sp { position: absolute; left: 50%; transform: translateX(-50%); pointer-events: none;
+             image-rendering: pixelated; filter: drop-shadow(0 2px 2px rgba(0,0,0,.5)); }
+  .bar .n { position: absolute; top: calc(100% + 6px); left: 50%; font-size: 11px; color: #cbd5e1;
+            white-space: nowrap; transform-origin: 0 0; transform: rotate(55deg); }
+  .bar.cmp { box-shadow: 0 0 0 3px #facc15, 0 0 16px 4px rgba(250,204,21,.6); z-index: 3; }
+  .bar.mov { box-shadow: 0 0 0 2px #fff, 0 0 14px 3px rgba(255,255,255,.55); z-index: 2; }
+  .band { position: absolute; top: -70px; bottom: 0; box-sizing: border-box; border-radius: 6px 6px 0 0;
+          border: 1px solid rgba(148,163,184,.35); transition: left .3s, width .3s, background .3s; }
+  .band b { position: absolute; top: 3px; left: 8px; font-size: 11px; color: #cbd5e1; font-weight: 600; }
+  #ctl { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  button, select { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 8px;
+                   padding: 6px 12px; font-size: 14px; cursor: pointer; }
+  button:hover { background: #334155; }
+  input[type=range] { flex: 1; min-width: 140px; }
+  #info { font-size: 12px; color: #94a3b8; min-width: 130px; text-align: right; }
+</style>
+<div id="card">
+  <div id="fase"></div>
+  <div id="expl"></div>
+  <div id="accion"></div>
+  <div id="stage"></div>
+  <div id="ctl">
+    <button id="play">▶ Reproducir</button>
+    <button id="reset">⟲ Reiniciar</button>
+    <select id="vel">
+      <option value="300">Lento</option>
+      <option value="120" selected>Normal</option>
+      <option value="40">Rápido</option>
+    </select>
+    <button id="snd" title="Sonido">🔊 Sonido</button>
+    <input type="range" id="seek" min="0" value="0">
+    <span id="info"></span>
+  </div>
+</div>
+<script>
+const D = __DATOS__;  // {items:[{name,value,rank}], steps:[[idx..]], anchos:[n..], cmps:[[a,b]|null..], bloque:n, campo:str}
+const stage = document.getElementById("stage");
+const n = D.items.length, W = stage.clientWidth, bw = W / n;
+const vmax = Math.max(...D.items.map(i => i.value), 1);
+
+const bars = D.items.map((it, k) => {
+  const b = document.createElement("div");
+  b.className = "bar";
+  b.style.width = (bw - 3) + "px";
+  b.style.height = Math.max(it.value / vmax * 100, 3) + "%";
+  b.style.background = `hsl(${it.rank / Math.max(n - 1, 1) * 290}, 80%, 55%)`;
+  const sz = Math.min(Math.max(bw * 2, 36), 60), conValor = n <= 24;
+  b.innerHTML = (conValor ? `<span class="v">${it.value}</span>` : "") + `<span class="n">${it.name}</span>` +
+    (it.img ? `<img class="sp" src="${it.img}" width="${sz}" height="${sz}" style="top:-${sz + (conValor ? 16 : 2)}px">` : "");
+  b.title = `${it.name}: ${it.value}`;
+  stage.appendChild(b);
+  return b;
+});
+
+let anchoPintado = 0;
+function bandas(w) {  // franjas alternadas: una por bloque (o por grupo fusionado)
+  if (w === anchoPintado) return;
+  anchoPintado = w;
+  stage.querySelectorAll(".band").forEach(e => e.remove());
+  for (let g = 0, p = 0; p < n; g++, p += w) {
+    const e = document.createElement("div");
+    e.className = "band";
+    e.style.left = (p * bw) + "px"; e.style.width = (Math.min(w, n - p) * bw) + "px";
+    e.style.background = g % 2 ? "rgba(99,102,241,.16)" : "rgba(14,165,233,.10)";
+    e.innerHTML = `<b>${w === D.bloque ? "Bloque" : "Grupo"} ${g + 1}</b>`;
+    stage.prepend(e);
+  }
+}
+
+// Sonido: cada comparacion es un tono suave y cada intercambio uno mas agudo; la altura sigue al valor final de la barra
+let audio = null, sonidoOn = true;
+function sonido(tipo, idx) {
+  if (!sonidoOn || !audio || audio.state !== "running") return;
+  const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime;
+  const f = 220 + D.items[idx].rank / Math.max(n - 1, 1) * 660;
+  o.type = tipo === "cmp" ? "triangle" : "sine";
+  o.frequency.value = tipo === "cmp" ? f : f * 1.5;
+  g.gain.setValueAtTime(tipo === "cmp" ? 0.05 : 0.1, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+  o.connect(g).connect(audio.destination);
+  o.start(t); o.stop(t + 0.1);
+}
+function activarAudio() {  // el navegador solo permite audio tras un clic
+  try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); } catch (e) {}
+}
+document.getElementById("snd").onclick = (e) => {
+  sonidoOn = !sonidoOn; activarAudio();
+  e.target.textContent = sonidoOn ? "🔊 Sonido" : "🔇 Silencio";
+};
+document.addEventListener("click", activarAudio);
+
+const seek = document.getElementById("seek"), play = document.getElementById("play");
+seek.max = D.steps.length - 1;
+let i = 0, timer = null;
+
+function show(k) {
+  i = k; seek.value = k;
+  const cur = D.steps[k], prev = D.steps[Math.max(k - 1, 0)];
+  const cmp = D.cmps[k];
+  const movidas = [];
+  cur.forEach((idx, pos) => {
+    bars[idx].style.left = (pos * bw + 1.5) + "px";
+    const cambio = k > 0 && prev[pos] !== idx;
+    if (cambio) movidas.push(idx);
+    bars[idx].classList.toggle("mov", cambio);
+    bars[idx].classList.toggle("cmp", !!cmp && (pos === cmp[0] || pos === cmp[1]));
+  });
+  const ac = document.getElementById("accion");
+  if (cmp) {
+    const A = D.items[cur[cmp[0]]], B = D.items[cur[cmp[1]]];
+    ac.innerHTML = `<span class="c">Comparando</span> ${A.name} (${A.value}) con ${B.name} (${B.value})`;
+    sonido("cmp", cur[cmp[0]]);
+  } else if (movidas.length === 2) {
+    const [A, B] = movidas.map(i => D.items[i]);
+    ac.innerHTML = `<span class="m">Intercambiando</span> ${A.name} y ${B.name}`;
+    sonido("swap", movidas[0]);
+  } else ac.textContent = "";
+  const w = D.anchos[k], fin = k === D.steps.length - 1, f1 = w === D.bloque && !fin;
+  bandas(w);
+  document.getElementById("fase").textContent =
+    k === 0 ? "Estado inicial: Pokémon mezclados"
+    : fin ? "¡Ordenado! El arcoíris quedó en orden"
+    : f1 ? `Fase 1 · Insertion sort dentro de cada bloque (de ${D.bloque})`
+         : `Fase 2 · Fusión: bloques de ${w / 2} se unen en grupos de ${w}`;
+  document.getElementById("expl").textContent =
+    k === 0 ? `Cada barra es un Pokémon (${D.campo}). Su color es su lugar final: el objetivo es ver el arcoíris de izquierda a derecha.`
+    : fin ? "Los que tenían el mismo valor conservaron su orden original (el algoritmo es estable)."
+    : f1 ? "La lista se parte en bloques (franjas) y cada uno se ordena por separado. Amarillo = se comparan; borde blanco = se mueven."
+         : "Cada bloque ya está ordenado; se juntan de a dos y los elementos se deslizan hasta su lugar en el grupo nuevo.";
+  if (fin) ac.textContent = "";
+  document.getElementById("info").textContent = `Paso ${k} de ${D.steps.length - 1}`;
+  if (fin) stop();
+}
+function stop() { clearInterval(timer); timer = null; play.textContent = "▶ Reproducir"; }
+function start() {
+  if (i >= D.steps.length - 1) show(0);
+  play.textContent = "⏸ Pausa";
+  timer = setInterval(() => show(i + 1), +document.getElementById("vel").value);
+}
+play.onclick = () => timer ? stop() : start();
+document.getElementById("reset").onclick = () => { stop(); show(0); };
+document.getElementById("vel").onchange = () => { if (timer) { stop(); start(); } };
+seek.oninput = () => { stop(); show(+seek.value); };
+// posicion inicial sin transicion; no arranca sola para que el clic en Reproducir habilite el audio
+bars.forEach(b => b.style.transition = "none");
+show(0);
+requestAnimationFrame(() => requestAnimationFrame(() => bars.forEach(b => b.style.transition = "")));
+</script>
