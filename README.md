@@ -16,6 +16,10 @@ pokedex-blocksort/
 ├── requirements.txt
 ├── main.py
 ├── app.py
+├── docs/
+│   ├── decisiones.md
+│   ├── guia-usuario.md
+│   └── referencias.md
 ├── ui/
 │   ├── __init__.py
 │   ├── controles.py
