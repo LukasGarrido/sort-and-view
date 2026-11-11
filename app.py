@@ -43,7 +43,7 @@ def main():
     if controles["vista"] == "Listado de Pokemon":
         mostrar_listado(pokemones_filtrados, controles["campo"])
     elif controles["vista"] == "Animacion de Ordenamiento":
-        mostrar_animacion_ordenamiento(pokemones_filtrados, controles["campo"])
+        mostrar_animacion_ordenamiento(pokemones_filtrados, controles["campo"], controles["reverse"])
     else:
         mostrar_benchmark()
 

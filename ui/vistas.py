@@ -7,7 +7,7 @@ import time
 import random
 import altair as alt
 from src.benchmark import ejecutar_benchmark
-from src.block_sort import block_sort_detailed_steps
+from src.block_sort import TAM_BLOQUE, block_sort_detailed_steps
 
 
 @st.cache_data
@@ -61,7 +61,7 @@ def mostrar_listado(pokemones, campo_orden):
     st.dataframe(df, use_container_width=True, hide_index=True)
 
 
-def mostrar_animacion_ordenamiento(pokemones, campo):
+def mostrar_animacion_ordenamiento(pokemones, campo, reverse=False):
     """Muestra una animación detallada y paso a paso del algoritmo Block Sort con nombres de Pokémon en el eje X."""
     st.subheader("Visualizador Animado y Detallado de Block Sort")
     st.markdown(
@@ -93,7 +93,12 @@ def mostrar_animacion_ordenamiento(pokemones, campo):
     if col_btn1.button("Iniciar Animacion Detallada"):
         muestra = list(pokemones[:tam_muestra])
         random.shuffle(muestra)
-        st.session_state["anim_steps_list"] = list(block_sort_detailed_steps(muestra, key=key_func))
+        st.session_state["anim_steps_list"] = list(block_sort_detailed_steps(muestra, key=key_func, reverse=reverse))
+        # pasos de insercion = suma de los de cada bloque; el resto es fusion
+        st.session_state["anim_ins_pasos"] = sum(
+            len(list(block_sort_detailed_steps(muestra[i:i + TAM_BLOQUE], key=key_func, reverse=reverse))) - 1
+            for i in range(0, len(muestra), TAM_BLOQUE)
+        )
         st.session_state["anim_step"] = 0
         st.session_state["anim_started"] = True
         st.rerun()
@@ -113,7 +118,7 @@ def mostrar_animacion_ordenamiento(pokemones, campo):
 
             if step_idx == 0:
                 st.info("Estado inicial aleatorio (desordenado). Las barras comenzaran a moverse...")
-            elif step_idx <= total // 2:
+            elif step_idx <= st.session_state["anim_ins_pasos"]:
                 st.info("Recorrido activo: Ordenando bloques locales mediante insercion paso a paso.")
             else:
                 st.info("Recorrido activo: Fusionando (Merge) bloques ordenados.")
