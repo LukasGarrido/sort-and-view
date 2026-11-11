@@ -3,6 +3,7 @@ App Streamlit: visualiza paso a paso cómo Block Sort ordena los Pokémon.
 
 Uso (desde la raíz del repo): streamlit run app.py
 """
+import random
 import time
 
 import pandas as pd
@@ -104,7 +105,8 @@ def _tabla_actual(paso, campo):
     with st.expander("Ver la tabla de Pokémon en el orden actual"):
         st.dataframe(pd.DataFrame([
             {"Posición": i, "ID": p["id"], "Nombre": p["name"], "Tipo": p["tipo"],
-             campo: p[campo]}
+             # ID y Nombre ya tienen su columna; el resto se añade aparte
+             **({campo: p[campo]} if campo not in ("id", "name") else {})}
             for i, p in enumerate(paso["estado"])
         ]), hide_index=True, width="stretch")
 
@@ -123,7 +125,9 @@ def main():
 
     if config["ordenar"]:
         st.session_state["pasos"] = generar_pasos(
-            datos[:config["cantidad"]], config["campo"],
+            # Muestra al azar de los 151 y en orden aleatorio (aunque se elijan
+            # todos), para no partir de una lista ya ordenada por ID.
+            random.sample(datos, config["cantidad"]), config["campo"],
             config["descendente"], config["tam_bloque"],
         )
         st.session_state["campo"] = config["campo"]
