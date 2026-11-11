@@ -1,6 +1,6 @@
 # Pokedex Block Sort
 
-Proyecto pequeno que ordena Pokemon obtenidos desde [PokeAPI](https://pokeapi.co/) usando el algoritmo **Block Sort** (block merge sort) y visualizacion interactiva con **Streamlit**.
+Proyecto algoritmo de ordenamiento con block sort usando la API publica [PokeAPI](https://pokeapi.co/) + visualizacion interactiva con **Streamlit**.
 
 ## Objetivo
 
