@@ -1,14 +1,22 @@
 # Pokedex Block Sort
 
-Proyecto algoritmo de ordenamiento con block sort usando la API publica [PokeAPI](https://pokeapi.co/) + visualizacion interactiva con **Streamlit**.
+Proyecto educativo de ordenamiento con el algoritmo **Block Sort** (Merge-Insertion Sort) utilizando datos estructurados de Pokémon (`data/pokemon.json`) + visualización interactiva con **Streamlit**.
 
 ## Objetivo
 
-- Implementar Block Sort en Python.
-- Obtener datos reales de Pokemon desde PokeAPI (con cache local SQLite en directorio del sistema operativo).
-- Visualizar y ordenar los datos mediante interfaz con Streamlit.
+- Implementar el algoritmo **Block Sort** en Python de forma **estable** y eficiente (con búfer temporal didáctico).
+- Procesar un conjunto de datos local optimizado de Pokémon (`data/pokemon.json`) extraído de la PokeAPI.
+- Visualizar, filtrar y ordenar los datos mediante una interfaz interactiva con Streamlit.
 
-## Estructura
+## Decisiones Clave (Resumen)
+
+- **Block Sort**: Es estable (los Pokémon con valores idénticos preservan su orden original) y utiliza un búfer temporal eficiente. Funciona ordenando bloques de tamaño fijo (`TAM_BLOQUE = 32`) con Insertion Sort y fusionándolos iterativamente por pares.
+- **Dataset Local (`data/pokemon.json`)**: Evita consultas repetitivas a la API remota, permite funcionamiento offline, garantiza datos limpios y normalizados (sin valores nulos) y acelera drásticamente las demostraciones.
+- **Streamlit**: Permite una interfaz interactiva rápida y limpia sin necesidad de desarrollo frontend complejo.
+
+Consulta [docs/decisiones.md](docs/decisiones.md) y [docs/referencias.md](docs/referencias.md) para más detalles técnicos.
+
+## Estructura del Proyecto
 
 ```
 pokedex-blocksort/
@@ -16,6 +24,8 @@ pokedex-blocksort/
 ├── requirements.txt
 ├── main.py
 ├── app.py
+├── data/
+│   └── pokemon.json
 ├── docs/
 │   ├── decisiones.md
 │   ├── guia-usuario.md
@@ -35,14 +45,31 @@ pokedex-blocksort/
     └── test_pokeapi.py
 ```
 
-## Instalacion
+## Instalación
 
 ```bash
 python -m venv venv
-venv\Scripts\activate
+# Windows: venv\Scripts\activate
+# Linux/macOS: source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Stack
+## Ejecución de Pruebas
+
+```bash
+python -m unittest discover tests
+```
+
+## Ejecución de la App Streamlit
+
+```bash
+streamlit run app.py
+```
+
+## Guía de Usuario
+
+[docs/guia-usuario.md](docs/guia-usuario.md).
+
+## Stack Tecnológico
 
 Python 3.10+, `requests`, `requests-cache`, `platformdirs`, `streamlit`, `pandas`, `pytest`.
