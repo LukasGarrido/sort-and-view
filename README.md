@@ -22,17 +22,19 @@ Consulta [docs/decisiones.md](docs/decisiones.md) y [docs/referencias.md](docs/r
 pokedex-blocksort/
 ├── README.md
 ├── requirements.txt
-├── main.py
 ├── app.py
 ├── data/
-│   └── pokemon.json
+│   ├── pokemon.json
+│   └── sprites/
 ├── docs/
+│   ├── code.md
 │   ├── decisiones.md
 │   ├── guia-usuario.md
 │   ├── referencias.md
 │   └── src/
 ├── ui/
 │   ├── __init__.py
+│   ├── animacion.html
 │   ├── controles.py
 │   ├── datos.py
 │   └── vistas.py
