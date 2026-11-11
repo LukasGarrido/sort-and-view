@@ -29,7 +29,8 @@ pokedex-blocksort/
 ├── docs/
 │   ├── decisiones.md
 │   ├── guia-usuario.md
-│   └── referencias.md
+│   ├── referencias.md
+│   └── src/
 ├── ui/
 │   ├── __init__.py
 │   ├── controles.py
@@ -37,9 +38,9 @@ pokedex-blocksort/
 │   └── vistas.py
 ├── src/
 │   ├── __init__.py      
+│   ├── benchmark.py
 │   ├── block_sort.py  
-│   ├── pokeapi.py    
-│   └── benchmark.py 
+│   └── pokeapi.py    
 └── tests/
     ├── test_block_sort.py
     └── test_pokeapi.py
