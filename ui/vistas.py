@@ -13,6 +13,7 @@ from src.block_sort import TAM_BLOQUE, _insertion_sort, _merge, block_sort, bloc
 
 # Bloques chicos solo para la animacion (el algoritmo real usa TAM_BLOQUE = 32)
 BLOQUE_ANIM = 8
+MIN_ANIM = 25  # minimo de datos pedido por la rubrica
 
 
 @st.cache_data
@@ -74,8 +75,12 @@ def mostrar_animacion_ordenamiento(pokemones, campo, reverse=False):
         st.warning("No hay datos disponibles para animar.")
         return
 
+    if len(pokemones) < MIN_ANIM:
+        st.warning(f"La animación necesita al menos {MIN_ANIM} Pokémon y con el filtro actual hay {len(pokemones)}. Quita o cambia el filtro.")
+        return
+
     col1, col2 = st.columns([3, 1])
-    tam = col1.slider("Cantidad de elementos", min_value=10, max_value=min(40, len(pokemones)), value=20, step=5, key="anim_tam_simple")
+    tam = col1.slider("Cantidad de elementos", min_value=MIN_ANIM, max_value=min(40, len(pokemones)), value=MIN_ANIM, step=1, key="anim_tam_simple")
     if col2.button("Mezclar de nuevo") or "anim_seed" not in st.session_state:
         st.session_state["anim_seed"] = random.random()
 
@@ -88,13 +93,14 @@ def mostrar_animacion_ordenamiento(pokemones, campo, reverse=False):
     rank = {pos[id(p)]: r for r, p in enumerate(pasos[-1][0])}
     datos = {
         "items": [{"name": p["name"].capitalize(), "value": key_func(p), "rank": rank[k]} for k, p in enumerate(muestra)],
-        "steps": [[pos[id(p)] for p in paso] for paso, _ in pasos],
-        "anchos": [ancho for _, ancho in pasos],
+        "steps": [[pos[id(p)] for p in paso] for paso, _, _ in pasos],
+        "anchos": [ancho for _, ancho, _ in pasos],
+        "cmps": [cmp for _, _, cmp in pasos],
         "bloque": BLOQUE_ANIM,
         "campo": campo,
     }
     html = (Path(__file__).parent / "animacion.html").read_text(encoding="utf-8")
-    components.html(html.replace("__DATOS__", json.dumps(datos)), height=510)
+    components.html(html.replace("__DATOS__", json.dumps(datos)), height=545)
     mostrar_explicacion_block_sort()
 
 

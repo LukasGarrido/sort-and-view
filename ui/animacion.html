@@ -6,12 +6,15 @@
   #card { background: #0f172a; border-radius: 12px; padding: 14px 16px 10px; }
   #fase { font-weight: 600; font-size: 15px; margin-bottom: 2px; }
   #expl { font-size: 13px; color: #94a3b8; min-height: 34px; }
+  #accion { font-size: 13px; font-weight: 600; min-height: 20px; margin-top: 2px; }
+  #accion .c { color: #facc15; } #accion .m { color: #fff; }
   #stage { position: relative; height: 280px; margin: 26px 0 96px; border-bottom: 2px solid #334155; }
   .bar { position: absolute; bottom: 0; border-radius: 5px 5px 0 0;
          transition: left .35s ease, box-shadow .2s, filter .2s; }
   .bar .v { position: absolute; top: -17px; width: 100%; text-align: center; font-size: 11px; color: #cbd5e1; }
   .bar .n { position: absolute; top: calc(100% + 6px); left: 50%; font-size: 11px; color: #cbd5e1;
             white-space: nowrap; transform-origin: 0 0; transform: rotate(55deg); }
+  .bar.cmp { box-shadow: 0 0 0 3px #facc15, 0 0 16px 4px rgba(250,204,21,.6); z-index: 3; }
   .bar.mov { box-shadow: 0 0 0 2px #fff, 0 0 14px 3px rgba(255,255,255,.55); z-index: 2; }
   .band { position: absolute; top: -24px; bottom: 0; box-sizing: border-box; border-radius: 6px 6px 0 0;
           border: 1px solid rgba(148,163,184,.35); transition: left .3s, width .3s, background .3s; }
@@ -26,21 +29,23 @@
 <div id="card">
   <div id="fase"></div>
   <div id="expl"></div>
+  <div id="accion"></div>
   <div id="stage"></div>
   <div id="ctl">
     <button id="play">▶ Reproducir</button>
     <button id="reset">⟲ Reiniciar</button>
     <select id="vel">
-      <option value="500">Lento</option>
-      <option value="220" selected>Normal</option>
-      <option value="70">Rápido</option>
+      <option value="300">Lento</option>
+      <option value="120" selected>Normal</option>
+      <option value="40">Rápido</option>
     </select>
+    <button id="snd" title="Sonido">🔊 Sonido</button>
     <input type="range" id="seek" min="0" value="0">
     <span id="info"></span>
   </div>
 </div>
 <script>
-const D = __DATOS__;  // {items:[{name,value,rank}], steps:[[idx..]], anchos:[n..], bloque:n, campo:str}
+const D = __DATOS__;  // {items:[{name,value,rank}], steps:[[idx..]], anchos:[n..], cmps:[[a,b]|null..], bloque:n, campo:str}
 const stage = document.getElementById("stage");
 const n = D.items.length, W = stage.clientWidth, bw = W / n;
 const vmax = Math.max(...D.items.map(i => i.value), 1);
@@ -72,6 +77,28 @@ function bandas(w) {  // franjas alternadas: una por bloque (o por grupo fusiona
   }
 }
 
+// Sonido: cada comparacion es un tono suave y cada intercambio uno mas agudo; la altura sigue al valor final de la barra
+let audio = null, sonidoOn = true;
+function sonido(tipo, idx) {
+  if (!sonidoOn || !audio || audio.state !== "running") return;
+  const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime;
+  const f = 220 + D.items[idx].rank / Math.max(n - 1, 1) * 660;
+  o.type = tipo === "cmp" ? "triangle" : "sine";
+  o.frequency.value = tipo === "cmp" ? f : f * 1.5;
+  g.gain.setValueAtTime(tipo === "cmp" ? 0.05 : 0.1, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+  o.connect(g).connect(audio.destination);
+  o.start(t); o.stop(t + 0.1);
+}
+function activarAudio() {  // el navegador solo permite audio tras un clic
+  try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); } catch (e) {}
+}
+document.getElementById("snd").onclick = (e) => {
+  sonidoOn = !sonidoOn; activarAudio();
+  e.target.textContent = sonidoOn ? "🔊 Sonido" : "🔇 Silencio";
+};
+document.addEventListener("click", activarAudio);
+
 const seek = document.getElementById("seek"), play = document.getElementById("play");
 seek.max = D.steps.length - 1;
 let i = 0, timer = null;
@@ -79,10 +106,25 @@ let i = 0, timer = null;
 function show(k) {
   i = k; seek.value = k;
   const cur = D.steps[k], prev = D.steps[Math.max(k - 1, 0)];
+  const cmp = D.cmps[k];
+  const movidas = [];
   cur.forEach((idx, pos) => {
     bars[idx].style.left = (pos * bw + 1.5) + "px";
-    bars[idx].classList.toggle("mov", k > 0 && prev[pos] !== idx);
+    const cambio = k > 0 && prev[pos] !== idx;
+    if (cambio) movidas.push(idx);
+    bars[idx].classList.toggle("mov", cambio);
+    bars[idx].classList.toggle("cmp", !!cmp && (pos === cmp[0] || pos === cmp[1]));
   });
+  const ac = document.getElementById("accion");
+  if (cmp) {
+    const A = D.items[cur[cmp[0]]], B = D.items[cur[cmp[1]]];
+    ac.innerHTML = `<span class="c">Comparando</span> ${A.name} (${A.value}) con ${B.name} (${B.value})`;
+    sonido("cmp", cur[cmp[0]]);
+  } else if (movidas.length === 2) {
+    const [A, B] = movidas.map(i => D.items[i]);
+    ac.innerHTML = `<span class="m">Intercambiando</span> ${A.name} y ${B.name}`;
+    sonido("swap", movidas[0]);
+  } else ac.textContent = "";
   const w = D.anchos[k], fin = k === D.steps.length - 1, f1 = w === D.bloque && !fin;
   bandas(w);
   document.getElementById("fase").textContent =
@@ -93,8 +135,9 @@ function show(k) {
   document.getElementById("expl").textContent =
     k === 0 ? `Cada barra es un Pokémon (${D.campo}). Su color es su lugar final: el objetivo es ver el arcoíris de izquierda a derecha.`
     : fin ? "Los que tenían el mismo valor conservaron su orden original (el algoritmo es estable)."
-    : f1 ? "La lista se parte en bloques (franjas) y cada uno se ordena por separado. Las barras con borde blanco son las que se mueven."
+    : f1 ? "La lista se parte en bloques (franjas) y cada uno se ordena por separado. Amarillo = se comparan; borde blanco = se mueven."
          : "Cada bloque ya está ordenado; se juntan de a dos y los elementos se deslizan hasta su lugar en el grupo nuevo.";
+  if (fin) ac.textContent = "";
   document.getElementById("info").textContent = `Paso ${k} de ${D.steps.length - 1}`;
   if (fin) stop();
 }
@@ -108,8 +151,8 @@ play.onclick = () => timer ? stop() : start();
 document.getElementById("reset").onclick = () => { stop(); show(0); };
 document.getElementById("vel").onchange = () => { if (timer) { stop(); start(); } };
 seek.oninput = () => { stop(); show(+seek.value); };
-// posicion inicial sin transicion, luego autoplay
+// posicion inicial sin transicion; no arranca sola para que el clic en Reproducir habilite el audio
 bars.forEach(b => b.style.transition = "none");
 show(0);
-requestAnimationFrame(() => requestAnimationFrame(() => { bars.forEach(b => b.style.transition = ""); start(); }));
+requestAnimationFrame(() => requestAnimationFrame(() => bars.forEach(b => b.style.transition = "")));
 </script>

@@ -140,23 +140,24 @@ def block_sort_steps(lista, key=None, reverse=False):
 
 
 def block_sort_detailed_steps(lista, key=None, reverse=False, bloque=TAM_BLOQUE):
-    """Generador que cede (yield) tuplas (copia del arreglo, ancho de los grupos) en cada
-    micro-paso (cada intercambio de insertion sort y de merge), para animar el algoritmo.
+    """Generador que cede (yield) tuplas (copia del arreglo, ancho, comparacion) para animar el algoritmo.
+    - Paso de comparacion: `comparacion` es (pos_a, pos_b), las dos posiciones que se comparan; el arreglo no cambia.
+    - Paso de intercambio: `comparacion` es None y el arreglo cambia en un intercambio.
     `ancho` es el tamaño de los bloques que se están ordenando o fusionando.
     `bloque` permite usar bloques más chicos que TAM_BLOQUE para que se vean en la animación.
     """
     if not lista:
-        yield [], bloque
+        yield [], bloque, None
         return
 
     arr = list(lista)
     n = len(arr)
     if n <= 1:
-        yield arr, bloque
+        yield arr, bloque, None
         return
 
     key_func = key if key is not None else (lambda x: x)
-    yield list(arr), bloque
+    yield list(arr), bloque, None
 
     def desordenados(x, y):
         """True si x no puede quedar antes que y (estricto, mantiene la estabilidad)."""
@@ -170,10 +171,13 @@ def block_sort_detailed_steps(lista, key=None, reverse=False, bloque=TAM_BLOQUE)
         end = min(start + bloque, n)
         for i in range(start + 1, end):
             j = i - 1
-            while j >= start and desordenados(arr[j], arr[j + 1]):
+            while j >= start:
+                yield list(arr), bloque, (j, j + 1)
+                if not desordenados(arr[j], arr[j + 1]):
+                    break
                 arr[j], arr[j + 1] = arr[j + 1], arr[j]
+                yield list(arr), bloque, None
                 j -= 1
-                yield list(arr), bloque
 
     # 3. Fusión detallada: cada elemento de la derecha que debe ir antes se desliza hacia su lugar
     width = bloque
@@ -183,10 +187,11 @@ def block_sort_detailed_steps(lista, key=None, reverse=False, bloque=TAM_BLOQUE)
             right = min(left + 2 * width, n)
             i, j = left, mid
             while i < j < right:
+                yield list(arr), 2 * width, (i, j)
                 if desordenados(arr[i], arr[j]):
                     for k in range(j, i, -1):
                         arr[k], arr[k - 1] = arr[k - 1], arr[k]
-                        yield list(arr), 2 * width
+                        yield list(arr), 2 * width, None
                     j += 1
                 i += 1
         width *= 2

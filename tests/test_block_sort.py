@@ -92,7 +92,7 @@ class TestBlockSort(unittest.TestCase):
             for reverse in (False, True):
                 datos = [(random.randint(1, 5), i) for i in range(n)]
                 pasos = list(block_sort_detailed_steps(datos, key=lambda t: t[0], reverse=reverse, bloque=bloque))
-                self.assertTrue(all(sorted(p) == sorted(datos) for p, _ in pasos))
+                self.assertTrue(all(sorted(p) == sorted(datos) for p, *_ in pasos))
                 self.assertEqual(pasos[-1][0], block_sort(datos, key=lambda t: t[0], reverse=reverse))
 
 
