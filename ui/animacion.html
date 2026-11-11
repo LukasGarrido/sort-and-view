@@ -1,0 +1,106 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; font-family: system-ui, sans-serif; color: #e2e8f0; }
+  #card { background: #0f172a; border-radius: 12px; padding: 14px 16px 10px; }
+  #fase { font-weight: 600; font-size: 15px; margin-bottom: 2px; }
+  #expl { font-size: 13px; color: #94a3b8; min-height: 34px; }
+  #stage { position: relative; height: 280px; margin: 26px 0 96px; border-bottom: 2px solid #334155; }
+  .bar { position: absolute; bottom: 0; border-radius: 5px 5px 0 0;
+         transition: left .35s ease, box-shadow .2s, filter .2s; }
+  .bar .v { position: absolute; top: -17px; width: 100%; text-align: center; font-size: 11px; color: #cbd5e1; }
+  .bar .n { position: absolute; top: calc(100% + 6px); left: 50%; font-size: 11px; color: #cbd5e1;
+            white-space: nowrap; transform-origin: 0 0; transform: rotate(55deg); }
+  .bar.mov { box-shadow: 0 0 0 2px #fff, 0 0 14px 3px rgba(255,255,255,.55); z-index: 2; }
+  .sep { position: absolute; top: -10px; bottom: 0; border-left: 2px dashed #475569; }
+  #ctl { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  button, select { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 8px;
+                   padding: 6px 12px; font-size: 14px; cursor: pointer; }
+  button:hover { background: #334155; }
+  input[type=range] { flex: 1; min-width: 140px; }
+  #info { font-size: 12px; color: #94a3b8; min-width: 130px; text-align: right; }
+</style>
+<div id="card">
+  <div id="fase"></div>
+  <div id="expl"></div>
+  <div id="stage"></div>
+  <div id="ctl">
+    <button id="play">▶ Reproducir</button>
+    <button id="reset">⟲ Reiniciar</button>
+    <select id="vel">
+      <option value="500">Lento</option>
+      <option value="220" selected>Normal</option>
+      <option value="70">Rápido</option>
+    </select>
+    <input type="range" id="seek" min="0" value="0">
+    <span id="info"></span>
+  </div>
+</div>
+<script>
+const D = __DATOS__;  // {items:[{name,value,rank}], steps:[[idx..]], fase1:n, bloque:n, campo:str}
+const stage = document.getElementById("stage");
+const n = D.items.length, W = stage.clientWidth, bw = W / n;
+const vmax = Math.max(...D.items.map(i => i.value), 1);
+
+const bars = D.items.map((it, k) => {
+  const b = document.createElement("div");
+  b.className = "bar";
+  b.style.width = (bw - 3) + "px";
+  b.style.height = Math.max(it.value / vmax * 100, 3) + "%";
+  b.style.background = `hsl(${it.rank / Math.max(n - 1, 1) * 290}, 80%, 55%)`;
+  b.innerHTML = (n <= 24 ? `<span class="v">${it.value}</span>` : "") + `<span class="n">${it.name}</span>`;
+  b.title = `${it.name}: ${it.value}`;
+  stage.appendChild(b);
+  return b;
+});
+
+const seps = [];
+for (let p = D.bloque; p < n; p += D.bloque) {
+  const s = document.createElement("div");
+  s.className = "sep"; s.style.left = (p * bw) + "px";
+  stage.appendChild(s); seps.push(s);
+}
+
+const seek = document.getElementById("seek"), play = document.getElementById("play");
+seek.max = D.steps.length - 1;
+let i = 0, timer = null;
+
+function show(k) {
+  i = k; seek.value = k;
+  const cur = D.steps[k], prev = D.steps[Math.max(k - 1, 0)];
+  cur.forEach((idx, pos) => {
+    bars[idx].style.left = (pos * bw + 1.5) + "px";
+    bars[idx].classList.toggle("mov", k > 0 && prev[pos] !== idx);
+  });
+  const fin = k === D.steps.length - 1, f1 = k <= D.fase1 && !fin;
+  seps.forEach(s => s.style.display = f1 || k === 0 ? "" : "none");
+  document.getElementById("fase").textContent =
+    k === 0 ? "Estado inicial: Pokémon mezclados"
+    : fin ? "¡Ordenado! El arcoíris quedó en orden"
+    : f1 ? "Fase 1 · Insertion sort dentro de cada bloque"
+         : "Fase 2 · Fusión (merge) de bloques ordenados";
+  document.getElementById("expl").textContent =
+    k === 0 ? `Cada barra es un Pokémon (${D.campo}). Su color es su lugar final: el objetivo es ver el arcoíris de izquierda a derecha.`
+    : fin ? "Los que tenían el mismo valor conservaron su orden original (el algoritmo es estable)."
+    : f1 ? (D.bloque < n ? "Las líneas punteadas separan los bloques. Cada uno se ordena por separado; las barras con borde blanco son las que se mueven."
+                         : "Cada elemento se desliza hacia atrás hasta encontrar su lugar. Las barras con borde blanco son las que se mueven.")
+         : "Se juntan de a dos los bloques ya ordenados, tomando siempre el menor de cada lado.";
+  document.getElementById("info").textContent = `Paso ${k} de ${D.steps.length - 1}`;
+  if (fin) stop();
+}
+function stop() { clearInterval(timer); timer = null; play.textContent = "▶ Reproducir"; }
+function start() {
+  if (i >= D.steps.length - 1) show(0);
+  play.textContent = "⏸ Pausa";
+  timer = setInterval(() => show(i + 1), +document.getElementById("vel").value);
+}
+play.onclick = () => timer ? stop() : start();
+document.getElementById("reset").onclick = () => { stop(); show(0); };
+document.getElementById("vel").onchange = () => { if (timer) { stop(); start(); } };
+seek.oninput = () => { stop(); show(+seek.value); };
+// posicion inicial sin transicion, luego autoplay
+bars.forEach(b => b.style.transition = "none");
+show(0);
+requestAnimationFrame(() => requestAnimationFrame(() => { bars.forEach(b => b.style.transition = ""); start(); }));
+</script>
