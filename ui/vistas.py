@@ -3,6 +3,7 @@ Vistas y renderizado de componentes para la app de Streamlit.
 """
 import streamlit as st
 import pandas as pd
+import base64
 import inspect
 import json
 import random
@@ -14,6 +15,16 @@ from src.block_sort import TAM_BLOQUE, _insertion_sort, _merge, block_sort, bloc
 # Bloques chicos solo para la animacion (el algoritmo real usa TAM_BLOQUE = 32)
 BLOQUE_ANIM = 8
 MIN_ANIM = 25  # minimo de datos pedido por la rubrica
+SPRITES = Path(__file__).resolve().parent.parent / "data" / "sprites"
+
+
+@st.cache_data
+def _sprite(id_pokemon):
+    """Sprite del Pokemon como data URI (el iframe de la animacion no puede leer archivos locales)."""
+    ruta = SPRITES / f"{id_pokemon}.png"
+    if not ruta.exists():
+        return ""
+    return "data:image/png;base64," + base64.b64encode(ruta.read_bytes()).decode()
 
 
 @st.cache_data
@@ -92,7 +103,7 @@ def mostrar_animacion_ordenamiento(pokemones, campo, reverse=False):
     pasos = list(block_sort_detailed_steps(muestra, key=key_func, reverse=reverse, bloque=BLOQUE_ANIM))
     rank = {pos[id(p)]: r for r, p in enumerate(pasos[-1][0])}
     datos = {
-        "items": [{"name": p["name"].capitalize(), "value": key_func(p), "rank": rank[k]} for k, p in enumerate(muestra)],
+        "items": [{"name": p["name"].capitalize(), "value": key_func(p), "rank": rank[k], "img": _sprite(p.get("id"))} for k, p in enumerate(muestra)],
         "steps": [[pos[id(p)] for p in paso] for paso, _, _ in pasos],
         "anchos": [ancho for _, ancho, _ in pasos],
         "cmps": [cmp for _, _, cmp in pasos],
@@ -100,7 +111,7 @@ def mostrar_animacion_ordenamiento(pokemones, campo, reverse=False):
         "campo": campo,
     }
     html = (Path(__file__).parent / "animacion.html").read_text(encoding="utf-8")
-    components.html(html.replace("__DATOS__", json.dumps(datos)), height=545)
+    components.html(html.replace("__DATOS__", json.dumps(datos)), height=610)
     mostrar_explicacion_block_sort()
 
 
