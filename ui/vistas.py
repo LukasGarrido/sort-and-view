@@ -7,7 +7,7 @@ import time
 import random
 import altair as alt
 from src.benchmark import ejecutar_benchmark
-from src.block_sort import block_sort_steps
+from src.block_sort import block_sort_detailed_steps
 
 
 @st.cache_data
@@ -62,12 +62,12 @@ def mostrar_listado(pokemones, campo_orden):
 
 
 def mostrar_animacion_ordenamiento(pokemones, campo):
-    """Muestra una animación interactiva del algoritmo Block Sort con gráfico de barras y tooltips."""
-    st.subheader("Visualizador Animado de Block Sort")
+    """Muestra una animación detallada y paso a paso del algoritmo Block Sort con nombres de Pokémon en el eje X."""
+    st.subheader("Visualizador Animado y Detallado de Block Sort")
     st.markdown(
         "Seleccione la cantidad de elementos y pulse el boton para iniciar. "
-        "Las barras se mezclaran aleatoriamente y podra ver en tiempo real cómo Block Sort las ordena paso a paso. "
-        "Pase el cursor sobre cualquier barra para ver a qué Pokemon corresponde."
+        "Cada barra muestra el nombre del Pokemon en el eje X y tiene un color unico para que pueda rastrear "
+        "cómo se desplaza y se ubica en su posicion correcta paso a paso."
     )
 
     if not pokemones:
@@ -76,9 +76,9 @@ def mostrar_animacion_ordenamiento(pokemones, campo):
 
     col1, col2 = st.columns(2)
     with col1:
-        tam_muestra = st.slider("Cantidad de elementos", min_value=10, max_value=min(50, len(pokemones)), value=25, step=5, key="anim_tam_simple")
+        tam_muestra = st.slider("Cantidad de elementos", min_value=10, max_value=min(40, len(pokemones)), value=20, step=5, key="anim_tam_simple")
     with col2:
-        velocidad = st.slider("Velocidad de animacion (segundos)", min_value=0.05, max_value=1.0, value=0.3, step=0.05, key="anim_vel_simple")
+        velocidad = st.slider("Velocidad de animacion (segundos por paso)", min_value=0.05, max_value=0.8, value=0.25, step=0.05, key="anim_vel_simple")
 
     key_func = lambda p: p.get(campo, 0)
 
@@ -90,11 +90,10 @@ def mostrar_animacion_ordenamiento(pokemones, campo):
         st.session_state["anim_steps_list"] = []
 
     col_btn1, col_btn2 = st.columns(2)
-    if col_btn1.button("Iniciar Animacion de Ordenamiento"):
-        # Tomar muestra y mezclar aleatoriamente para garantizar estado desordenado visible
+    if col_btn1.button("Iniciar Animacion Detallada"):
         muestra = list(pokemones[:tam_muestra])
         random.shuffle(muestra)
-        st.session_state["anim_steps_list"] = list(block_sort_steps(muestra, key=key_func))
+        st.session_state["anim_steps_list"] = list(block_sort_detailed_steps(muestra, key=key_func))
         st.session_state["anim_step"] = 0
         st.session_state["anim_started"] = True
         st.rerun()
@@ -110,14 +109,14 @@ def mostrar_animacion_ordenamiento(pokemones, campo):
 
         if total > 0:
             progreso = min(step_idx / total, 1.0)
-            st.progress(progreso, text=f"Paso {step_idx} de {total}")
+            st.progress(progreso, text=f"Paso detallado {step_idx} de {total}")
 
             if step_idx == 0:
-                st.info("Estado inicial desordenado (mezclado aleatoriamente).")
+                st.info("Estado inicial aleatorio (desordenado). Las barras comenzaran a moverse...")
             elif step_idx <= total // 2:
-                st.info("Fase 1: Ordenamiento local por insercion en bloques de tamano 32.")
+                st.info("Recorrido activo: Ordenando bloques locales mediante insercion paso a paso.")
             else:
-                st.info("Fase 2: Fusion (Merge) progresiva de bloques ordenados.")
+                st.info("Recorrido activo: Fusionando (Merge) bloques ordenados.")
 
             paso_actual = steps[step_idx]
             
@@ -127,16 +126,17 @@ def mostrar_animacion_ordenamiento(pokemones, campo):
                 "Pokemon": [p.get("name", "").capitalize() for p in paso_actual]
             })
 
-            # Gráfico interactivo con Altair para mostrar tooltips con el nombre del Pokémon
-            chart = alt.Chart(df_paso).mark_bar(color="#ff4b4b").encode(
-                x=alt.X("Posicion:O", title="Posicion en el Arreglo", sort=None),
+            # Gráfico con Altair mostrando los nombres de los Pokémon en el eje X y colores persistentes
+            chart = alt.Chart(df_paso).mark_bar().encode(
+                x=alt.X("Pokemon:N", title="Pokemon", sort=list(df_paso["Pokemon"])),
                 y=alt.Y("Valor:Q", title=f"Valor ({campo})"),
+                color=alt.Color("Pokemon:N", legend=None, scale=alt.Scale(scheme="category20")),
                 tooltip=["Posicion", "Pokemon", "Valor"]
             ).properties(height=380)
 
             st.altair_chart(chart, use_container_width=True)
 
-            with st.expander("Ver detalle de elementos en este paso"):
+            with st.expander("Ver detalle de elementos en este micro-paso"):
                 st.dataframe(df_paso[["Posicion", "Pokemon", "Valor"]], hide_index=True, use_container_width=True)
 
             if step_idx < total:
@@ -145,7 +145,7 @@ def mostrar_animacion_ordenamiento(pokemones, campo):
                 st.rerun()
             else:
                 st.session_state["anim_started"] = False
-                st.success("¡Ordenamiento completado con exito!")
+                st.success("¡Recorrido y ordenamiento completado con exito!")
 
 
 def mostrar_benchmark():
