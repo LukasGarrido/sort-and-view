@@ -14,7 +14,7 @@ REPETICIONES = 20
 
 
 class _Contado:
-    """Envuelve un valor y cuenta cada comparacion hecha con < o >."""
+    """Envuelve un valor y cuenta cada comparacion (<, >, <=, >=)."""
     comparaciones = 0
 
     def __init__(self, v):
@@ -27,6 +27,14 @@ class _Contado:
     def __gt__(self, otro):
         _Contado.comparaciones += 1
         return self.v > otro.v
+
+    def __le__(self, otro):
+        _Contado.comparaciones += 1
+        return self.v <= otro.v
+
+    def __ge__(self, otro):
+        _Contado.comparaciones += 1
+        return self.v >= otro.v
 
 
 def _medir(datos):
