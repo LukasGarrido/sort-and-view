@@ -65,9 +65,9 @@ def _merge(arr, start, mid, end, key_func, reverse):
         k += 1
 
 
-def block_sort(lista, key=None, reverse=False):
+def block_sort(lista, key=None, reverse=False, bloque=TAM_BLOQUE):
     """Ordenamiento por fusión estable (Block Sort):
-    1. Divide la lista en bloques de tamaño fijo (TAM_BLOQUE).
+    1. Divide la lista en bloques de tamaño fijo (`bloque`, por defecto TAM_BLOQUE).
     2. Ordena cada bloque con insertion sort.
     3. Fusiona bloques vecinos de a pares, duplicando el ancho en cada pasada,
        hasta quedar un solo bloque.
@@ -86,13 +86,13 @@ def block_sort(lista, key=None, reverse=False):
 
     key_func = key if key is not None else (lambda x: x)
 
-    # 1 y 2. Dividir en bloques de tamaño TAM_BLOQUE y ordenar con insertion sort
-    for i in range(0, n, TAM_BLOQUE):
-        end = min(i + TAM_BLOQUE, n)
+    # 1 y 2. Dividir en bloques de tamaño `bloque` y ordenar con insertion sort
+    for i in range(0, n, bloque):
+        end = min(i + bloque, n)
         _insertion_sort(arr, i, end, key_func, reverse)
 
     # 3. Fusionar bloques vecinos de a pares, duplicando el ancho en cada pasada
-    width = TAM_BLOQUE
+    width = bloque
     while width < n:
         for i in range(0, n, 2 * width):
             left = i

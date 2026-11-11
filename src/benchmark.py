@@ -1,5 +1,5 @@
 """
-Medicion de rendimiento de block_sort: tiempo y comparaciones segun el tamano.
+Medicion de rendimiento de block_sort: tiempo y comparaciones segun el tamano de la lista y del bloque.
 
 Uso: python -m src.benchmark
 """
@@ -9,7 +9,8 @@ from src.block_sort import block_sort
 from src.pokeapi import cargar_pokemon
 
 CAMPOS = ("height", "weight", "base_experience")
-TAMANOS = (25, 50, 100, 151)
+TAMANOS = (20, 40, 60, 80, 100, 120, 151)
+BLOQUES = (4, 8, 16, 32, 64)
 REPETICIONES = 20
 
 
@@ -37,31 +38,32 @@ class _Contado:
         return self.v >= otro.v
 
 
-def _medir(datos):
+def _medir(datos, bloque):
     """Devuelve (mejor tiempo en s, comparaciones) de block_sort sobre datos."""
     mejor = float("inf")
     for _ in range(REPETICIONES):
         copia = list(datos)
         t0 = time.perf_counter()
-        block_sort(copia)
+        block_sort(copia, bloque=bloque)
         mejor = min(mejor, time.perf_counter() - t0)
     _Contado.comparaciones = 0
-    block_sort([_Contado(x) for x in datos])
+    block_sort([_Contado(x) for x in datos], bloque=bloque)
     return mejor, _Contado.comparaciones
 
 
 def ejecutar_benchmark():
-    """Mide block_sort por campo y tamano; devuelve filas (campo, n, segundos, comparaciones)."""
+    """Mide block_sort por campo, tamano de bloque y n; devuelve filas (campo, bloque, n, segundos, comparaciones)."""
     pokemones = cargar_pokemon()
     filas = []
     for campo in CAMPOS:
-        for n in TAMANOS:
-            datos = [p[campo] for p in pokemones[:n]]
-            filas.append((campo, n, *_medir(datos)))
+        for bloque in BLOQUES:
+            for n in TAMANOS:
+                datos = [p[campo] for p in pokemones[:n]]
+                filas.append((campo, bloque, n, *_medir(datos, bloque)))
     return filas
 
 
 if __name__ == "__main__":
-    print(f"{'campo':<16}{'n':>5}{'tiempo':>12}{'comparaciones':>15}")
-    for campo, n, t, c in ejecutar_benchmark():
-        print(f"{campo:<16}{n:>5}{t * 1e6:>9.1f} us{c:>15}")
+    print(f"{'campo':<16}{'bloque':>7}{'n':>5}{'tiempo':>12}{'comparaciones':>15}")
+    for campo, bloque, n, t, c in ejecutar_benchmark():
+        print(f"{campo:<16}{bloque:>7}{n:>5}{t * 1e6:>9.1f} us{c:>15}")
