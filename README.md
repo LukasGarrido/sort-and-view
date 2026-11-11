@@ -15,6 +15,12 @@ pokedex-blocksort/
 ├── README.md
 ├── requirements.txt
 ├── main.py
+├── app.py
+├── ui/
+│   ├── __init__.py
+│   ├── controles.py
+│   ├── datos.py
+│   └── vistas.py
 ├── src/
 │   ├── __init__.py      
 │   ├── block_sort.py  
