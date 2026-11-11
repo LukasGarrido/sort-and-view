@@ -3,6 +3,7 @@ src/pokeapi.py
 
 Cliente de la PokeAPI.
 """
+import json
 import requests
 import requests_cache
 from pathlib import Path
@@ -59,8 +60,21 @@ def all_pokemon(limit=151):
     return pokemones
 
 
+JSON_PATH = Path(__file__).resolve().parent.parent / "data" / "pokemon.json"
+
+
+def generar_json(limit=151, ruta=JSON_PATH):
+    """Descarga los Pokemon de la API y los guarda en un JSON local."""
+    pokemones = all_pokemon(limit)
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    ruta.write_text(json.dumps(pokemones, indent=1), encoding="utf-8")
+    return pokemones
+
+
+def cargar_pokemon(ruta=JSON_PATH):
+    """Lee los Pokemon del JSON local (sin llamar a la API)."""
+    return json.loads(ruta.read_text(encoding="utf-8"))
+
+
 if __name__ == "__main__":
-    pokemones = all_pokemon(20)
-    print(f"Total obtenidos: {len(pokemones)}")
-    for p in pokemones[:5]:
-        print(p)
+    print(f"Guardados: {len(generar_json())} en {JSON_PATH}")
