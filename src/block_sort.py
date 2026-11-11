@@ -103,3 +103,38 @@ def block_sort(lista, key=None, reverse=False):
         width *= 2
 
     return arr
+
+
+def block_sort_steps(lista, key=None, reverse=False):
+    """Generador que cede (yield) copias del arreglo en cada paso intermedio
+    de Block Sort (después de ordenar cada bloque y después de cada pasada de fusión).
+    Permite visualizar la evolución del ordenamiento paso a paso.
+    """
+    if not lista:
+        yield []
+        return
+
+    arr = list(lista)
+    n = len(arr)
+    if n <= 1:
+        yield arr
+        return
+
+    key_func = key if key is not None else (lambda x: x)
+    yield list(arr)
+
+    for i in range(0, n, TAM_BLOQUE):
+        end = min(i + TAM_BLOQUE, n)
+        _insertion_sort(arr, i, end, key_func, reverse)
+        yield list(arr)
+
+    width = TAM_BLOQUE
+    while width < n:
+        for i in range(0, n, 2 * width):
+            left = i
+            mid = min(i + width, n)
+            right = min(i + 2 * width, n)
+            if mid < right:
+                _merge(arr, left, mid, right, key_func, reverse)
+        yield list(arr)
+        width *= 2
