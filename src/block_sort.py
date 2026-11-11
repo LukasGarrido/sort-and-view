@@ -141,7 +141,7 @@ def block_sort_steps(lista, key=None, reverse=False):
 
 def block_sort_detailed_steps(lista, key=None, reverse=False):
     """Generador que cede (yield) copias del arreglo en cada micro-paso
-    (cada desplazamiento de insertion sort y cada asignación de merge),
+    (cada intercambio de insertion sort y de merge),
     permitiendo una animación detallada, lenta y fluida del recorrido del algoritmo.
     """
     if not lista:
@@ -157,73 +157,36 @@ def block_sort_detailed_steps(lista, key=None, reverse=False):
     key_func = key if key is not None else (lambda x: x)
     yield list(arr)
 
-    # 1 y 2. Inserción detallada por bloques
+    def desordenados(x, y):
+        """True si x no puede quedar antes que y (estricto, mantiene la estabilidad)."""
+        return key_func(x) < key_func(y) if reverse else key_func(x) > key_func(y)
+
+    # Cada yield es una permutación de la lista (solo se intercambian elementos),
+    # así la animación puede mover una barra por elemento sin repetidos ni faltantes.
+
+    # 1 y 2. Inserción detallada por bloques (intercambios con el vecino)
     for start in range(0, n, TAM_BLOQUE):
         end = min(start + TAM_BLOQUE, n)
         for i in range(start + 1, end):
-            current = arr[i]
             j = i - 1
-            if not reverse:
-                while j >= start and key_func(arr[j]) > key_func(current):
-                    arr[j + 1] = arr[j]
-                    j -= 1
-                    yield list(arr)
-            else:
-                while j >= start and key_func(arr[j]) < key_func(current):
-                    arr[j + 1] = arr[j]
-                    j -= 1
-                    yield list(arr)
-            arr[j + 1] = current
-            yield list(arr)
+            while j >= start and desordenados(arr[j], arr[j + 1]):
+                arr[j], arr[j + 1] = arr[j + 1], arr[j]
+                j -= 1
+                yield list(arr)
 
-    # 3. Fusión (Merge) detallada
+    # 3. Fusión detallada: cada elemento de la derecha que debe ir antes se desliza hacia su lugar
     width = TAM_BLOQUE
     while width < n:
-        for i in range(0, n, 2 * width):
-            left = i
-            mid = min(i + width, n)
-            right = min(i + 2 * width, n)
-            if mid < right:
-                sub_left = list(arr[left:mid])
-                sub_right = list(arr[mid:right])
-                
-                li = 0
-                lj = 0
-                lk = left
-                nl = len(sub_left)
-                nr = len(sub_right)
-
-                if not reverse:
-                    while li < nl and lj < nr:
-                        if key_func(sub_left[li]) <= key_func(sub_right[lj]):
-                            arr[lk] = sub_left[li]
-                            li += 1
-                        else:
-                            arr[lk] = sub_right[lj]
-                            lj += 1
-                        lk += 1
+        for left in range(0, n, 2 * width):
+            mid = min(left + width, n)
+            right = min(left + 2 * width, n)
+            i, j = left, mid
+            while i < j < right:
+                if desordenados(arr[i], arr[j]):
+                    for k in range(j, i, -1):
+                        arr[k], arr[k - 1] = arr[k - 1], arr[k]
                         yield list(arr)
-                else:
-                    while li < nl and lj < nr:
-                        if key_func(sub_left[li]) >= key_func(sub_right[lj]):
-                            arr[lk] = sub_left[li]
-                            li += 1
-                        else:
-                            arr[lk] = sub_right[lj]
-                            lj += 1
-                        lk += 1
-                        yield list(arr)
-
-                while li < nl:
-                    arr[lk] = sub_left[li]
-                    li += 1
-                    lk += 1
-                    yield list(arr)
-
-                while lj < nr:
-                    arr[lk] = sub_right[lj]
-                    lj += 1
-                    lk += 1
-                    yield list(arr)
+                    j += 1
+                i += 1
         width *= 2
     yield list(arr)

@@ -2,7 +2,8 @@
 Pruebas unitarias para Block Sort.
 """
 import unittest
-from src.block_sort import block_sort, TAM_BLOQUE
+import random
+from src.block_sort import block_sort, block_sort_detailed_steps, TAM_BLOQUE
 
 
 class TestBlockSort(unittest.TestCase):
@@ -84,6 +85,15 @@ class TestBlockSort(unittest.TestCase):
         self.assertEqual(keys_desc, [3, 2, 2, 2, 1])
         twos_desc = [x["orig_index"] for x in res_desc if x["key"] == 2]
         self.assertEqual(twos_desc, [0, 2, 4])
+
+    def test_pasos_detallados_son_permutaciones(self):
+        """Cada paso de la animación contiene todos los elementos, sin repetidos ni faltantes."""
+        for n in (5, TAM_BLOQUE + 8):
+            for reverse in (False, True):
+                datos = [(random.randint(1, 5), i) for i in range(n)]
+                pasos = list(block_sort_detailed_steps(datos, key=lambda t: t[0], reverse=reverse))
+                self.assertTrue(all(sorted(p) == sorted(datos) for p in pasos))
+                self.assertEqual(pasos[-1], block_sort(datos, key=lambda t: t[0], reverse=reverse))
 
 
 if __name__ == "__main__":
