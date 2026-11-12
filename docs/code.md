@@ -1,125 +1,121 @@
-# Pokedex Block Sort: cómo está construido
+# Pokedex Block Sort: Arquitectura y Diseño del Código
 
-Este documento explica cómo funciona el proyecto **Pokedex Block Sort**: qué hace cada archivo, cómo se conectan entre sí y cómo se comprueba que todo funcione bien.
-
----
-
-## 1. La aplicación web
-
-### `app.py`
-Es la puerta de entrada. Con Streamlit levanta una página web interactiva donde puedes explorar Pokémon y ver cómo trabaja el algoritmo de ordenamiento.
-
-**Qué hace:**
-* Configura la página con diseño ancho para aprovechar toda la pantalla.
-* Carga los datos de los Pokémon una sola vez y los guarda en caché (`cargar_datos`).
-* Dibuja la barra lateral con los controles (`renderizar_controles`).
-* Filtra y ordena los registros según lo que elijas (`filtrar_y_ordenar`).
-* Te permite moverte entre tres vistas:
-  1. **Listado de Pokémon:** una tabla interactiva con métricas resumen.
-  2. **Animación de ordenamiento:** ves paso a paso cómo se ordena la lista con gráficos animados de Altair.
-  3. **Métricas de benchmark:** análisis de rendimiento y comparaciones.
+Este documento explica en profundidad la arquitectura del proyecto **Pokedex Block Sort**: la estructura de directorios, la responsabilidad de cada módulo, el funcionamiento interno del algoritmo de ordenamiento, la capa de datos con la PokéAPI, la interfaz de usuario en Streamlit y la suite de pruebas unitarias.
 
 ---
 
-## 2. El corazón del proyecto (`src/`)
+## 1. Estructura del Proyecto
 
-### `src/__init__.py`
-Marca la carpeta `src` como paquete de Python.
+```text
+C:\Users\lukas\Desktop\Projects\sort-and-view\
+├── app.py                  # Punto de entrada de la aplicación Streamlit
+├── requirements.txt        # Dependencias de Python
+├── README.md               # Descripción general del proyecto
+├── data\
+│   ├── pokemon.json        # Dataset estático local (151 Pokémon)
+│   └── sprites\            # Sprites gráficos en PNG por ID de Pokémon
+├── docs\
+│   ├── code.md             # Documentación técnica y arquitectura
+│   ├── decisiones.md       # Registro de decisiones de diseño
+│   ├── guia-usuario.md     # Guía para el usuario final
+│   └── referencias.md      # Referencias bibliográficas y teóricas
+├── src\
+│   ├── __init__.py         # Paquete principal de lógica
+│   ├── benchmark.py        # Módulo de medición de rendimiento
+│   ├── block_sort.py       # Implementación del algoritmo Block Sort
+│   └── pokeapi.py          # Cliente PokeAPI y gestor de datos locales
+├── tests\
+│   ├── test_block_sort.py  # Pruebas unitarias para Block Sort
+│   └── test_pokeapi.py     # Pruebas unitarias para el cliente PokeAPI
+└── ui\
+    ├── __init__.py         # Paquete de interfaz gráfica
+    ├── animacion.html      # Plantilla HTML/JS para la visualización animada
+    ├── controles.py        # Componentes de la barra lateral (Sidebar)
+    ├── datos.py            # Capa intermedia de filtrado y procesamiento
+    └── vistas.py           # Renderizado de vistas en Streamlit (Listado, Animación, Benchmark)
+```
+
+---
+
+## 2. La Aplicación Web (`app.py`)
+
+`app.py` es el script principal que inicializa la aplicación web con **Streamlit**.
+
+* Configura la página en modo ancho (`layout="wide"`).
+* Carga el dataset de Pokémon llamando a `cargar_datos()` (con caché de Streamlit).
+* Renderiza los controles interactivos de la barra lateral mediante `renderizar_controles()`.
+* Filtra y ordena los registros según los parámetros elegidos (`filtrar_y_ordenar()`).
+* Orquestra la navegación entre las tres vistas principales:
+  1. **Listado de Pokémon:** Tabla interactiva con métricas y datos formateados.
+  2. **Animación de Ordenamiento:** Visualización paso a paso del algoritmo.
+  3. **Métricas de Benchmark:** Análisis comparativo de rendimiento.
+
+---
+
+## 3. El Corazón del Proyecto (`src/`)
 
 ### `src/block_sort.py`
-Aquí vive el algoritmo **Block Sort**, un método híbrido inspirado en Merge-Insertion Sort y en una versión simplificada de Timsort.
+Implementa el algoritmo **Block Sort**, un método de ordenamiento híbrido y estable inspirado en Merge-Insertion Sort y versiones simplificadas de Timsort.
 
-**Funciones principales:**
-* `_insertion_sort(arr, start, end, key_func, reverse)`: ordena un tramo pequeño de la lista, en el rango `[start, end)`, usando inserción. Es muy eficiente con bloques chicos.
-* `_merge(arr, start, mid, end, key_func, reverse)`: une dos tramos ya ordenados que están uno al lado del otro. Mantiene la estabilidad y usa un búfer temporal pensado para que sea fácil de entender.
-* `block_sort(lista, key=None, reverse=False)`: la función principal. Parte la lista en bloques de tamaño fijo (`TAM_BLOQUE = 32`), ordena cada uno por inserción y luego los va fusionando de a pares, duplicando el ancho en cada pasada. Devuelve una lista nueva y no modifica la original.
-* `block_sort_detailed_steps(lista, key=None, reverse=False)`: un generador (`yield`) que entrega una copia de la lista en cada micro-paso, tanto en las inserciones como en las fusiones. Es lo que hace posible la animación paso a paso.
+* **`_insertion_sort(arr, start, end, key_func, reverse)`**: Ordena un segmento acotado `[start, end)` utilizando inserción directa. Es altamente eficiente para bloques pequeños (`TAM_BLOQUE = 32`).
+* **`_merge(arr, start, mid, end, key_func, reverse)`**: Fusiona dos sublistas ordenadas adyacentes manteniendo la estabilidad mediante un búfer temporal didáctico.
+* **`block_sort(lista, key=None, reverse=False, bloque=TAM_BLOQUE)`**: Función principal. Divide la lista en bloques de tamaño fijo, ordena cada uno por inserción y los fusiona de a pares duplicando el ancho en cada pasada. Retorna una nueva lista sin mutar la original.
+* **`block_sort_steps(lista, key=None, reverse=False)`**: Generador que cede copias del arreglo en cada etapa intermedia.
+* **`block_sort_detailed_steps(lista, key=None, reverse=False, bloque=TAM_BLOQUE)`**: Generador avanzado que cede tuplas con el estado del arreglo, el ancho del bloque y las comparaciones o intercambios, permitiendo la animación fluida en la UI.
 
 ### `src/pokeapi.py`
-Se encarga de hablar con la PokéAPI y de manejar el dataset local (`data/pokemon.json`).
+Gestiona la comunicación con la **PokeAPI** y la lectura del dataset estático local (`data/pokemon.json`).
 
-**Características:**
-* Usa una caché persistente en SQLite (con `requests_cache` y `platformdirs`) para no repetir peticiones de red y que la app arranque más rápido.
-* `listar_pokemon(limit)`: obtiene el listado básico desde la API.
-* `detalle_pokemon(id_o_nombre)`: consulta los datos completos de un Pokémon concreto.
-* `cargar_pokemon(ruta)`: lee el dataset local guardado en `data/pokemon.json`.
-* `all_pokemon(limit)`: intenta cargar primero el archivo local y, si no puede, recurre automáticamente a la API.
-* `generar_json(limit, ruta)`: descarga el dataset desde la API y lo guarda en tu equipo.
-* `filtrar_por_tipo` y `buscar_pokemon`: funciones auxiliares para filtrar y buscar.
+* Utiliza `requests_cache` junto con `platformdirs` para establecer una caché persistente en SQLite (`pokeapi_cache`), evitando solicitudes repetitivas a la red y acelerando los tiempos de arranque.
+* **`listar_pokemon(limit)`**: Obtiene el listado básico desde la API.
+* **`detalle_pokemon(id_o_nombre)`**: Consulta los datos completos de un Pokémon específico.
+* **`cargar_pokemon(ruta)`**: Lee el dataset local JSON.
+* **`all_pokemon(limit)`**: Carga prioritaria desde el archivo local con fallback automático a la API remota.
+* **`generar_json(limit, ruta)`**: Descarga y normaliza el dataset desde la PokeAPI guardándolo en `data/pokemon.json`.
+* Funciones auxiliares de filtrado (`filtrar_por_tipo`, `buscar_pokemon`).
 
 ### `src/benchmark.py`
-Mide qué tan rápido y qué tan eficiente es `block_sort` en la práctica.
+Mide de forma empírica el rendimiento de `block_sort`.
 
-**Componentes:**
-* Clase `_Contado`: envuelve los valores para interceptar y contar cuántas comparaciones (`<`, `>`, `<=`, `>=`) se hacen durante el ordenamiento.
-* `_medir(datos)`: repite la prueba varias veces (`REPETICIONES = 20`), se queda con el mejor tiempo en microsegundos (`perf_counter`) y registra las comparaciones.
-* `ejecutar_benchmark()`: evalúa el rendimiento con distintos campos (`height`, `weight`, `base_experience`) y diferentes tamaños de entrada (`25`, `50`, `100`, `151`).
-* Se puede correr desde la consola con `python -m src.benchmark`.
+* **`_Contado`**: Clase envoltorio que intercepta y cuenta cada comparación (`<`, `>`, `<=`, `>=`) realizada durante el ordenamiento.
+* **`_medir(datos, bloque)`**: Realiza múltiples repeticiones (`REPETICIONES = 20`), toma el mejor tiempo de ejecución (`perf_counter`) y registra el número exacto de comparaciones.
+* **`ejecutar_benchmark()`**: Evalúa combinaciones de campos (`height`, `weight`, `base_experience`), tamaños de bloque y tamaños de lista ($n$).
+* Ejecutable directamente por consola (`python -m src.benchmark`).
 
 ---
 
-## 3. La interfaz de usuario (`ui/`)
-
-### `ui/__init__.py`
-Marca la carpeta `ui` como paquete de Python.
+## 4. La Interfaz de Usuario (`ui/`)
 
 ### `ui/controles.py`
-Maneja los controles interactivos de la barra lateral de Streamlit.
-
-**Incluye:**
-* Una caja de texto para buscar Pokémon por nombre.
-* Un desplegable para filtrar por tipo elemental ("Todos", "Grass", "Fire", "Water", etc.).
-* Un selector para elegir por qué característica ordenar ("ID", "Nombre", "Altura", "Peso", "Experiencia Base").
-* Una casilla para invertir el orden (`reverse`).
-* Un botón para elegir la vista principal.
+Define los elementos interactivos de la barra lateral (*Sidebar*) en Streamlit (búsqueda por texto, filtrado por tipo elemental, selección de atributo de ordenamiento, checkbox de orden descendente y selector de vista).
 
 ### `ui/datos.py`
-Es la capa intermedia que prepara los datos para la interfaz.
-
-**Funciones:**
-* `cargar_datos()`: carga los Pokémon usando la caché de Streamlit (`@st.cache_data`).
-* `obtener_tipos_disponibles(pokemones)`: saca los tipos únicos del dataset y los ordena alfabéticamente.
-* `filtrar_y_ordenar(...)`: aplica en cadena el filtro por tipo y la búsqueda por texto, y al final llama a `block_sort` con la clave elegida.
+Capa intermedia que conecta los datos en caché con la lógica de filtrado y ordenamiento de la aplicación.
 
 ### `ui/vistas.py`
-Se encarga de dibujar las vistas en Streamlit.
-
-**Secciones:**
-* `mostrar_metricas_generales(...)`: tarjetas con el total de Pokémon y los promedios de altura, peso y experiencia base.
-* `mostrar_listado(...)`: tabla formateada con Pandas y Streamlit (`st.dataframe`).
-* `mostrar_animacion_ordenamiento(...)`: visualizador interactivo con **Altair** (`st.altair_chart`), con controles para el tamaño de la muestra y la velocidad, barras de progreso y pasos detallados.
+Contiene las funciones encargadas de renderizar las vistas en la interfaz:
+* **`mostrar_metricas_generales(...)`**: Tarjetas métricas superiores con totales y promedios.
+* **`mostrar_listado(...)`**: Tabla formateada con Pandas (`st.dataframe`).
+* **`mostrar_animacion_ordenamiento(...)`**: Visualizador interactivo que integra la plantilla `animacion.html` mediante `streamlit.components.v1`.
+* **`mostrar_explicacion_block_sort()`**: Pestañas con el código fuente real extraído directamente de `src/block_sort.py`.
+* **`mostrar_benchmark()`**: Gráficos de líneas interactivos y tablas de rendimiento de benchmark.
 
 ---
 
-## 4. Pruebas unitarias (`tests/`)
+## 5. Pruebas Unitarias (`tests/`)
 
 ### `tests/test_block_sort.py`
-Verifica que `block_sort` ordene correctamente y sea estable.
-
-**Casos de prueba:**
-* `test_lista_vacia`: comprueba qué pasa con una lista vacía `[]`.
-* `test_un_elemento`: valida listas de un solo elemento.
-* `test_elementos_duplicados`: revisa el orden ascendente y descendente con valores repetidos.
-* `test_coincidencia_con_sorted_numeros`: compara el resultado con `sorted()` de Python usando listas aleatorias de varios tamaños (menores, iguales y mayores a `TAM_BLOQUE = 32`).
-* `test_con_key_funcion`: prueba el ordenamiento de diccionarios que simulan atributos de Pokémon usando `key=lambda x: ...`.
-* `test_inmutabilidad_lista_original`: asegura que la lista original no se modifique.
-* `test_estabilidad`: confirma que los elementos con la misma clave conservan su orden relativo, tanto en ascendente como en descendente.
+Verifica la corrección, estabilidad, manejo de casos borde (listas vacías, un elemento, duplicados) y correspondencia estricta con la función integrada `sorted()` de Python para diversos tamaños de entrada y funciones `key`.
 
 ### `tests/test_pokeapi.py`
-Verifica el cliente de la API y el dataset local.
-
-**Casos de prueba:**
-* Que el directorio de caché (`CACHE_DIR`) exista y sea correcto.
-* Que `requests_cache` esté instalado y funcione.
-* Que los datos se carguen bien desde `data/pokemon.json`.
-* Que `all_pokemon()` respete el límite indicado.
-* Que el filtrado por tipo y la búsqueda por nombre funcionen.
+Valida la existencia del directorio de caché, el funcionamiento de la caché HTTP y la correcta lectura y filtrado del dataset local de Pokémon.
 
 ---
 
-## 5. Documentación y datos (`data/`, `docs/`)
+## 6. Datos y Documentación (`data/`, `docs/`)
 
-* **`data/pokemon.json`:** dataset estático con los primeros 151 Pokémon y sus atributos clave (`id`, `name`, `height`, `weight`, `base_experience`, `tipo`). Permite que la app funcione sin conexión y arranque rápido.
-* **`docs/decisiones.md`:** registro de las decisiones de arquitectura y diseño del proyecto.
-* **`docs/guia-usuario.md`:** manual para el usuario final sobre cómo instalar y ejecutar la app web y el benchmark por consola.
-* **`docs/referencias.md`:** referencias teóricas y bibliográficas sobre algoritmos de ordenamiento híbridos y Block Sort.
+* **`data/pokemon.json`**: Dataset estático normalizado con los primeros 151 Pokémon y sus atributos clave (`id`, `name`, `height`, `weight`, `base_experience`, `tipo`).
+* **`data/sprites/`**: Directorio con los iconos PNG de cada Pokémon utilizados en la animación.
+* **`docs/decisiones.md`**: Registro de decisiones arquitectónicas y de diseño.
+* **`docs/guia-usuario.md`**: Manual de usuario para instalación y ejecución.
+* **`docs/referencias.md`**: Bibliografía teórica sobre algoritmos de ordenamiento híbridos, estabilidad y Block Sort.

@@ -1,6 +1,6 @@
 # Pokedex Block Sort
 
-Proyecto educativo de ordenamiento con el algoritmo **Block Sort** (Merge-Insertion Sort) utilizando datos estructurados de Pokémon (`data/pokemon.json`) + visualización interactiva con **Streamlit**.
+Proyecto de ordenamiento con el algoritmo **Block Sort** (Merge-Insertion Sort) utilizando datos estructurados de Pokémon (`data/pokemon.json`) + visualización interactiva con **Streamlit**.
 
 ## Objetivo
 
@@ -68,10 +68,6 @@ python -m unittest discover tests
 ```bash
 streamlit run app.py
 ```
-
-## Guía de Usuario
-
-[docs/guia-usuario.md](docs/guia-usuario.md).
 
 ## Stack Tecnológico
 
